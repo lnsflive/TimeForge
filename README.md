@@ -14,13 +14,13 @@ A professional time tracking application built with Nuxt.js that helps you manag
 
 ## Screenshots
 
-![Login Screen](ss1.png)
-![Time Tracking Dashboard](ss2.png)
-![Settings Page](ss3.png)
+![Login Screen](static/img/ss1.png)
+![Time Tracking Dashboard](static/img/ss2.png)
+![Settings Page](static/img/ss3.png)
 
 ## Tech Stack
 
-- Frontend: Nuxt.js 2.x with Vuetify
+- Frontend: Nuxt.js with Vuetify
 - Backend: Strapi Headless CMS
 - Authentication: @nuxtjs/auth
 - Styling: Vuetify Material Design Framework
