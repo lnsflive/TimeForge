@@ -59,7 +59,6 @@
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { useNuxtApp } from 'nuxt/app'
-import type { NuxtApp } from 'nuxt/app'
 
 interface AlertMessage {
   content: string
@@ -82,22 +81,24 @@ interface StrapiUser {
   }
 }
 
-declare module '#app' {
-  interface NuxtApp {
-    $strapi: {
-      getUser(): Promise<StrapiUser>
-    }
-    $axios: {
-      post(url: string, data: any): Promise<any>
-      put(url: string, data: any): Promise<any>
-    }
-    $alerter: {
-      showMessage(message: AlertMessage): void
-    }
+interface NuxtAppPlugins {
+  $strapi: {
+    getUser(): Promise<StrapiUser>
+  }
+  $axios: {
+    post(url: string, data: any): Promise<any>
+    put(url: string, data: any): Promise<any>
+  }
+  $alerter: {
+    showMessage(message: AlertMessage): void
   }
 }
 
-const nuxtApp = useNuxtApp()
+const nuxtApp = useNuxtApp() as unknown as {
+  $strapi: NuxtAppPlugins['$strapi']
+  $axios: NuxtAppPlugins['$axios']
+  $alerter: NuxtAppPlugins['$alerter']
+}
 const userStore = useUserStore()
 
 const avatarDialogue = ref(false)
