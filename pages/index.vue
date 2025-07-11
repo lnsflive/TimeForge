@@ -1,8 +1,8 @@
 <template>
   <v-container class="d-flex justify-center fill-height pa-0">
     <v-row class="text-center align-center fill-height ma-0">
-      <v-col class="d-flex flex-column justify-space-between fill-height py-16">
-        <div>
+      <v-col class="d-flex flex-column justify-space-between fill-height py-8">
+        <div class="mb-8">
           <div class="text-subtitle-1">
             {{ datestamp }}
           </div>
@@ -12,7 +12,7 @@
           <div class="text-body-1">{{ statusMessage }}</div>
         </div>
 
-        <div>
+        <div class="mb-8">
           <v-btn
             v-if="clockedIn"
             fab
@@ -21,6 +21,7 @@
             height="188"
             color="error"
             :disabled="!canClockOut"
+            rounded="circle"
             @click="clockOut"
           >
             <div class="d-flex flex-column align-center">
@@ -36,6 +37,7 @@
             height="188"
             color="success"
             :disabled="!canClockIn"
+            rounded="circle"
             @click="clockIn"
           >
             <div class="d-flex flex-column align-center">
@@ -123,7 +125,7 @@
       absolute
       bottom
       color="primary"
-      class="rounded-t-xl mb-n10 pa-4"
+      class="rounded-t-lg mb-n10 pa-4"
       temporary
     >
       <v-text-field v-model="startMiles" label="Mileage Start" type="text" class="dataInput mt-8" />
@@ -185,14 +187,17 @@ interface BreakState {
   startTime: string | null
 }
 
-interface NotificationData {
-  title: string
-  body: string
-  delay: number
-  tag: string
+interface Button {
+  text: string
+  icon: string
+  route?: string
+  handler?: string
+  iconColor?: string
+  activeKey?: string
+  disabled: boolean
 }
 
-interface NuxtApp {
+interface NuxtAppPlugins {
   $alerter: {
     showMessage(message: AlertMessage): void
   }
@@ -204,35 +209,34 @@ interface NuxtApp {
   $fetch: <T = any>(url: string, options?: any) => Promise<T>
 }
 
-const nuxtApp = useNuxtApp() as unknown as NuxtApp
-
+const nuxtApp = useNuxtApp() as unknown as NuxtAppPlugins
 const userStore = useUserStore()
 
 const lunchActive = ref(false)
 const milesActive = ref(false)
-const errors = ref(null)
+const errors = ref<string | null>(null)
 const datestamp = ref('')
 const timestamp = ref('')
-const success = ref(null)
+const success = ref<string | null>(null)
 const clockedIn = ref(false)
-const startTime = ref(null)
-const endTime = ref(null)
-const startLunch = ref(null)
-const endLunch = ref(null)
-const startMiles = ref(null)
-const endMiles = ref(null)
-const breakStartTime = ref(null)
+const startTime = ref<string | null>(null)
+const endTime = ref<string | null>(null)
+const startLunch = ref<string | null>(null)
+const endLunch = ref<string | null>(null)
+const startMiles = ref<string | null>(null)
+const endMiles = ref<string | null>(null)
+const breakStartTime = ref<Date | null>(null)
 const breakDuration = ref(0)
-const breakHistory = ref([])
+const breakHistory = ref<any[]>([])
 const counter = ref(0)
 const hours = ref(0)
 const today = ref('')
 const isOnBreak = ref(false)
 const isOnLunch = ref(false)
 const breakElapsed = ref(0)
-const breakInterval = ref(null)
+const breakInterval = ref<ReturnType<typeof setInterval> | null>(null)
 
-const buttons = [
+const buttons: Button[] = [
   {
     text: 'Timesheet',
     icon: 'mdi-newspaper',
@@ -388,7 +392,7 @@ onBeforeUnmount(() => {
 })
 
 // Methods
-function formatDuration(minutes) {
+function formatDuration(minutes: number): string {
   const hrs = Math.floor(minutes / 60)
   const mins = minutes % 60
   return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`
@@ -400,7 +404,7 @@ function updateBreakDuration() {
   }
 }
 
-function toggleBreak() {
+function toggleBreak(): void {
   if (isOnBreak.value) {
     nuxtApp.$timerService.sendBreakState(null)
     const finalDuration = breakTimeFormatted.value
@@ -412,17 +416,18 @@ function toggleBreak() {
       value: 'success'
     })
   } else {
-    const breakState = { startTime: breakStartTime.value }
+    const now = new Date()
+    breakStartTime.value = now
+    const breakState = { startTime: now.toISOString() }
     nuxtApp.$timerService.sendBreakState(breakState)
-    nuxtApp.$timerService.scheduleBreakReminders(breakStartTime.value)
+    nuxtApp.$timerService.scheduleBreakReminders(now.toISOString())
     isOnBreak.value = true
-    breakStartTime.value = new Date()
     breakElapsed.value = 0
     startBreakTimer()
     localStorage.setItem(
       'breakState',
       JSON.stringify({
-        startTime: breakStartTime.value
+        startTime: now.toISOString()
       })
     )
     nuxtApp.$alerter.showMessage({
@@ -432,23 +437,23 @@ function toggleBreak() {
   }
 }
 
-function startBreakTimer() {
+function startBreakTimer(): void {
   if (breakInterval.value) return
   breakInterval.value = setInterval(() => {
+    if (!breakStartTime.value) return
     const now = new Date().getTime()
-    const start = new Date(breakStartTime.value).getTime()
+    const start = breakStartTime.value.getTime()
     breakElapsed.value = Math.floor((now - start) / 1000)
-    // Save state every second to ensure accuracy
     localStorage.setItem(
       'breakState',
       JSON.stringify({
-        startTime: breakStartTime.value
+        startTime: breakStartTime.value.toISOString()
       })
     )
   }, 1000)
 }
 
-function clearBreakTimer() {
+function clearBreakTimer(): void {
   if (breakInterval.value) {
     clearInterval(breakInterval.value)
     breakInterval.value = null
@@ -473,7 +478,7 @@ function getDateTime() {
   timestamp.value = time
 }
 
-function getTimeStamp() {
+function getTimeStamp(): string {
   return new Date().toISOString()
 }
 
@@ -565,7 +570,7 @@ function clockOut() {
   postTime()
 }
 
-async function postTime() {
+async function postTime(): Promise<void> {
   errors.value = null
   try {
     const { $fetch } = nuxtApp
@@ -586,8 +591,9 @@ async function postTime() {
     nuxtApp.$alerter.showMessage({ content: success.value, value: 'success' })
     clearLocalStorage()
     navigateTo('/dashboard')
-  } catch (e) {
-    errors.value = e.response?.data?.message?.[0]?.messages?.[0]?.message || 'An error occurred'
+  } catch (e: unknown) {
+    const error = e as { response?: { data?: { message?: string[] } } }
+    errors.value = error.response?.data?.message?.[0] || 'An error occurred'
     nuxtApp.$alerter.showMessage({ content: errors.value, value: 'error' })
   }
 }
@@ -596,14 +602,14 @@ function clearLocalStorage() {
   localStorage.clear()
 }
 
-function getButtonActive(btn) {
+function getButtonActive(btn: Button): boolean {
   if (btn.text === 'Break') {
     return !!breakStartTime.value
   }
-  return btn.activeKey ? this[btn.activeKey] : false
+  return false
 }
 
-function handleButtonClick(btn) {
+function handleButtonClick(btn: Button): void {
   if (btn.disabled) {
     nuxtApp.$alerter.showMessage({
       content: 'This action is not available right now',
@@ -612,16 +618,16 @@ function handleButtonClick(btn) {
     return
   }
 
-  if (btn.handler && typeof this[btn.handler] === 'function') {
-    this[btn.handler]()
+  if (btn.handler === 'toggleMileage') {
+    toggleMileage()
   }
 }
 
-function toggleMileage() {
+function toggleMileage(): void {
   milesActive.value = !milesActive.value
 }
 
-function toggleLunch() {
+function toggleLunch(): void {
   if (!clockedIn.value) {
     nuxtApp.$alerter.showMessage({
       content: 'You must be clocked in to take lunch',
@@ -825,11 +831,6 @@ function syncTimerStateWithServiceWorker() {
 
 .rounded-lg {
   border-radius: 4px !important;
-}
-
-.rounded-t-xl {
-  border-top-left-radius: 12px !important;
-  border-top-right-radius: 12px !important;
 }
 
 .mb-n10 {

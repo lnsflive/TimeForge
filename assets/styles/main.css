@@ -125,9 +125,9 @@
   border-radius: 4px !important;
 }
 
-.rounded-t-xl {
-  border-top-left-radius: 12px !important;
-  border-top-right-radius: 12px !important;
+.rounded-t-lg {
+  border-top-left-radius: 8px !important;
+  border-top-right-radius: 8px !important;
 }
 
 /* Custom classes */

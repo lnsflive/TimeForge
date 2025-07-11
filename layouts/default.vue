@@ -1,6 +1,6 @@
 <template>
   <v-app class="d-flex flex-column fill-height overflow-hidden" theme="dark">
-    <v-app-bar height="66" color="primary" class="flex-shrink-0 rounded-b-lg">
+    <v-app-bar height="66" color="primary" class="flex-shrink-0">
       <template #prepend>
         <v-app-bar-nav-icon>
           <v-icon x-large @click.stop="drawer = !drawer">mdi-menu</v-icon>
@@ -28,7 +28,7 @@
       </div>
     </v-main>
 
-    <v-footer color="primary" class="flex-shrink-0 rounded-t-lg" height="66">
+    <v-footer color="primary" class="flex-shrink-0" height="44">
       <v-row no-gutters justify="center" align="center">
         <v-col cols="12" class="text-center">
           <span class="text-caption"
@@ -43,7 +43,7 @@
       absolute
       bottom
       color="primary"
-      class="rounded-r-lg"
+      class="rounded-none"
       temporary
     >
       <v-list nav>
@@ -175,17 +175,17 @@ const logout = async () => {
 }
 
 .rounded-b-lg {
-  border-bottom-left-radius: 12px !important;
-  border-bottom-right-radius: 12px !important;
+  border-bottom-left-radius: 8px !important;
+  border-bottom-right-radius: 8px !important;
 }
 
 .rounded-t-lg {
-  border-top-left-radius: 12px !important;
-  border-top-right-radius: 12px !important;
+  border-top-left-radius: 8px !important;
+  border-top-right-radius: 8px !important;
 }
 
 .rounded-r-lg {
-  border-top-right-radius: 12px !important;
-  border-bottom-right-radius: 12px !important;
+  border-top-right-radius: 8px !important;
+  border-bottom-right-radius: 8px !important;
 }
 </style>

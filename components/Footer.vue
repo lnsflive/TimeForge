@@ -12,9 +12,7 @@
 
 <style scoped>
 .v-footer {
-  height: 66px !important;
-  border-top-left-radius: 12px !important;
-  border-top-right-radius: 12px !important;
+  height: 44px !important;
 }
 
 .text-caption {
