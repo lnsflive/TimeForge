@@ -8,6 +8,6 @@ export const getters = {
   },
 
   avatarImage(state) {
-    return 'https://strapi.jaimegonzalezjr.com/uploads/nicolas_horn_MTZT_Gv_Ds_HFY_unsplash_251f94cf0b.jpg'
+    return `${process.env.API_AUTH_URL}${state.auth.user.image.url}`
   }
 }
