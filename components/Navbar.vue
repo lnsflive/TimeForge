@@ -1,6 +1,6 @@
 <template>
   <v-container>
-    <v-app-bar fixed app height="66px" color="primary" class="pl-4 pr-4 rounded-b-xl">
+    <v-app-bar fixed app height="66px" color="primary" class="pl-4 pr-4 rounded-b-lg">
       <v-app-bar-nav-icon>
         <v-icon x-large @click.stop="drawer = !drawer"> mdi-menu </v-icon>
       </v-app-bar-nav-icon>
@@ -18,7 +18,7 @@
       absolute
       bottom
       color="primary"
-      class="rounded-t-xl"
+      class="rounded-r-lg"
       temporary
     >
       <v-list nav>
