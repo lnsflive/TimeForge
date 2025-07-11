@@ -1,97 +1,141 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col cols="12">
-        <v-card>
-          <v-card-title class="d-flex justify-space-between align-center">
-            <span>Timesheet Report</span>
-            <v-menu
-              ref="menu"
-              v-model="menu"
-              :close-on-content-click="false"
-              transition="scale-transition"
-              offset-y
-              max-width="290px"
-              min-width="290px"
-            >
-              <template #activator="{ on, attrs }">
-                <v-btn text v-bind="attrs" v-on="on">
-                  <v-icon left> mdi-calendar </v-icon>
-                  {{ dateRangeText }}
-                </v-btn>
-              </template>
-              <v-date-picker v-model="dateRange" range no-title @input="menu = false" />
-            </v-menu>
-          </v-card-title>
+  <div class="fill-height d-flex px-4 my-4">
+    <v-card width="1200px" max-width="100%" class="mx-auto d-flex flex-column">
+      <v-card-title
+        class="d-flex justify-space-between align-center px-6 py-4 primary flex-shrink-0"
+      >
+        <span>Timesheet Report</span>
+        <v-menu
+          ref="menu"
+          v-model="menuOpen"
+          :close-on-content-click="false"
+          transition="scale-transition"
+          offset-y
+          max-width="290px"
+          min-width="290px"
+        >
+          <template #activator="{ props }">
+            <v-btn text v-bind="props">
+              <v-icon left> mdi-calendar </v-icon>
+              {{ dateRangeText }}
+            </v-btn>
+          </template>
+          <v-date-picker v-model="dateRange" range no-title @update:model-value="onDateSelect" />
+        </v-menu>
+      </v-card-title>
 
-          <v-divider />
+      <v-divider class="flex-shrink-0" />
 
-          <timesheet-report :entries="filteredEntries" :pay-rate="payRate" />
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+      <div class="flex-grow-1 overflow-hidden">
+        <timesheet-report
+          class="h-100"
+          :entries="filteredEntries"
+          :pay-rate="payRate"
+          @entries-deleted="fetchTimesheets"
+        />
+      </div>
+    </v-card>
+  </div>
 </template>
 
-<script>
-import { mapGetters } from 'vuex'
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useUserStore } from '~/stores/user'
+import { useAlertStore } from '~/stores/alert'
+import { useNuxtApp } from 'nuxt/app'
 import TimesheetReport from '@/components/TimesheetReport.vue'
 
-export default {
-  components: {
-    TimesheetReport
-  },
-  data() {
-    return {
-      entries: [],
-      dateRange: [],
-      menu: false,
-      loading: false,
-      error: null
-    }
-  },
-  computed: {
-    ...mapGetters(['loggedInUser']),
-    payRate() {
-      return this.loggedInUser?.payRate || 0
-    },
-    dateRangeText() {
-      if (!this.dateRange || this.dateRange.length !== 2) {
-        return 'All Time'
-      }
-      return `${this.dateRange[0]} to ${this.dateRange[1]}`
-    },
-    filteredEntries() {
-      if (!this.dateRange || this.dateRange.length !== 2) {
-        return this.entries
-      }
-      return this.entries.filter((entry) => {
-        const date = entry.date
-        return date >= this.dateRange[0] && date <= this.dateRange[1]
-      })
-    }
-  },
-  async mounted() {
-    await this.fetchTimesheets()
-  },
-  methods: {
-    async fetchTimesheets() {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await this.$axios.get('/timesheets', {
-          params: {
-            owner: this.loggedInUser.username
-          }
-        })
-        this.entries = response.data
-      } catch (e) {
-        this.error = e.response?.data?.message || 'Failed to fetch timesheets'
-        this.$alerter.showMessage({ content: this.error, value: 'error' })
-      } finally {
-        this.loading = false
-      }
-    }
+interface TimesheetEntry {
+  id: number
+  date: string
+  startTime: string
+  endTime: string
+  startLunch?: string | null
+  endLunch?: string | null
+  startMiles?: number | null
+  endMiles?: number | null
+  owner: string
+}
+
+interface NuxtApp {
+  $axios: {
+    get(url: string, config?: any): Promise<{ data: TimesheetEntry[] }>
   }
 }
+
+const nuxtApp = useNuxtApp() as unknown as NuxtApp
+const userStore = useUserStore()
+const alertStore = useAlertStore()
+
+const entries = ref<TimesheetEntry[]>([])
+const dateRange = ref<string[]>([])
+const menuOpen = ref(false)
+const loading = ref(false)
+const error = ref('')
+
+const payRate = computed(() => userStore.loggedInUser?.payRate || 0)
+
+const dateRangeText = computed(() => {
+  if (!dateRange.value || dateRange.value.length !== 2) {
+    return 'All Time'
+  }
+  return `${dateRange.value[0]} to ${dateRange.value[1]}`
+})
+
+const filteredEntries = computed(() => {
+  if (!dateRange.value || dateRange.value.length !== 2) {
+    return entries.value
+  }
+  return entries.value.filter((entry) => {
+    return entry.date >= dateRange.value[0] && entry.date <= dateRange.value[1]
+  })
+})
+
+const onDateSelect = () => {
+  if (dateRange.value?.length === 2) {
+    menuOpen.value = false
+  }
+}
+
+const fetchTimesheets = async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    const response = await nuxtApp.$axios.get('/timesheets', {
+      params: {
+        owner: userStore.username
+      }
+    })
+    entries.value = response.data
+  } catch (e: any) {
+    const errorMessage = e.response?.data?.message || 'Failed to fetch timesheets'
+    error.value = errorMessage
+    alertStore.showMessage({ content: errorMessage, value: 'error' })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  await fetchTimesheets()
+})
 </script>
+
+<style>
+.v-card {
+  border-radius: 12px !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.v-card-title {
+  color: white !important;
+}
+
+/* Reduce table header padding */
+:deep(.v-data-table-header th) {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+</style>

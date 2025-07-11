@@ -1,0 +1,190 @@
+/* Global styles */
+:root {
+  --orange: #ff9800;
+  --orange-darken-2: #f57c00;
+  --success: #4caf50;
+  --success-darken-2: #388e3c;
+  --error: #f44336;
+  --error-darken-2: #d32f2f;
+  --warning-bg: #fff3e0;
+  --error-bg: #ffebee;
+}
+
+/* Typography */
+.text-h2 {
+  font-size: 3.75rem !important;
+  font-weight: 300;
+  line-height: 3.75rem;
+  letter-spacing: -0.0083333333em !important;
+}
+
+.text-h4 {
+  font-size: 2.125rem !important;
+  font-weight: 400;
+  line-height: 2.5rem;
+  letter-spacing: 0.0073529412em !important;
+}
+
+.text-h5 {
+  font-size: 1.5rem !important;
+  font-weight: 400;
+  line-height: 2rem;
+  letter-spacing: 0em !important;
+}
+
+.text-h6 {
+  font-size: 1.25rem !important;
+  font-weight: 500;
+  line-height: 2rem;
+  letter-spacing: 0.0125em !important;
+}
+
+.text-subtitle-1 {
+  font-size: 1rem !important;
+  font-weight: 400;
+  line-height: 1.75rem;
+  letter-spacing: 0.009375em !important;
+}
+
+.text-body-1 {
+  font-size: 1rem !important;
+  font-weight: 400;
+  line-height: 1.5rem;
+  letter-spacing: 0.03125em !important;
+}
+
+/* Layout */
+.fill-height {
+  height: 100% !important;
+}
+
+.d-flex {
+  display: flex !important;
+}
+
+.flex-column {
+  flex-direction: column !important;
+}
+
+.flex-wrap {
+  flex-wrap: wrap !important;
+}
+
+.justify-center {
+  justify-content: center !important;
+}
+
+.justify-space-between {
+  justify-content: space-between !important;
+}
+
+.align-center {
+  align-items: center !important;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+/* Spacing */
+.ma-2 {
+  margin: 8px !important;
+}
+
+.ma-4 {
+  margin: 16px !important;
+}
+
+.mb-2 {
+  margin-bottom: 8px !important;
+}
+
+.mb-4 {
+  margin-bottom: 16px !important;
+}
+
+.ml-4 {
+  margin-left: 16px !important;
+}
+
+.pa-2 {
+  padding: 8px !important;
+}
+
+.pa-4 {
+  padding: 16px !important;
+}
+
+.py-16 {
+  padding-top: 64px !important;
+  padding-bottom: 64px !important;
+}
+
+/* Borders */
+.rounded-lg {
+  border-radius: 4px !important;
+}
+
+.rounded-t-xl {
+  border-top-left-radius: 12px !important;
+  border-top-right-radius: 12px !important;
+}
+
+/* Custom classes */
+.warning-bg {
+  background-color: var(--warning-bg) !important;
+}
+
+.error-bg {
+  background-color: var(--error-bg) !important;
+}
+
+.mb-n10 {
+  margin-bottom: -40px !important;
+}
+
+.mt-8 {
+  margin-top: 32px !important;
+}
+
+.black--text {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+/* Button styles */
+.v-btn.orange {
+  background-color: var(--orange) !important;
+  color: white !important;
+}
+
+.v-btn.orange.darken-2 {
+  background-color: var(--orange-darken-2) !important;
+}
+
+.v-btn.success {
+  background-color: var(--success) !important;
+  color: white !important;
+}
+
+.v-btn.success.darken-2 {
+  background-color: var(--success-darken-2) !important;
+}
+
+.v-btn.error {
+  background-color: var(--error) !important;
+  color: white !important;
+}
+
+.v-btn.error.darken-2 {
+  background-color: var(--error-darken-2) !important;
+}
+
+.v-btn.white {
+  background-color: #ffffff !important;
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+.v-btn.green {
+  background-color: var(--success) !important;
+  color: white !important;
+}

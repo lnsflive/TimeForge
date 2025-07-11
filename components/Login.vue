@@ -8,21 +8,20 @@
           {{ status }}
         </v-card-text>
         <v-text-field
-          ref="username"
           v-model="username"
-          prepend-inner-icon="mdi-email"
+          prepend-inner-icon="mdi-account"
           autocomplete="username"
           autofocus
           label="Username"
           type="text"
-          value="u"
           name="username"
-          :placeholder="placeUsername"
+          placeholder="Enter your username"
           persistent-placeholder
           outlined
           clearable
           rounded
           required
+          :rules="[(v) => !!v || 'Username is required']"
           tabindex="1"
         />
         <v-text-field
@@ -33,9 +32,8 @@
           autocomplete="email"
           label="E-mail"
           type="email"
-          value="sample"
-          name="e"
-          :placeholder="placeEmail"
+          name="email"
+          placeholder="Enter your email"
           persistent-placeholder
           outlined
           clearable
@@ -45,14 +43,13 @@
         />
         <v-text-field
           v-model="password"
-          :rules="nameRules"
+          :rules="passwordRules"
           prepend-inner-icon="mdi-key"
-          autocomplete="password"
+          autocomplete="current-password"
           label="Password"
           name="password"
-          :placeholder="placePass"
+          placeholder="Enter your password"
           persistent-placeholder
-          value="p"
           outlined
           clearable
           rounded
@@ -66,6 +63,7 @@
           color="success"
           style="height: 50px; margin-top: 10px"
           type="submit"
+          @click="checkSend"
         >
           {{ btnStatus }}
         </v-btn>
@@ -85,102 +83,162 @@
   </v-container>
 </template>
 
-<script>
-export default {
-  data: () => ({
-    username: '',
-    status: 'Login',
-    btnStatus: 'Submit',
-    btnRegister: 'Register',
-    registered: false,
-    placeUsername: 'Username',
-    placeEmail: 'Email',
-    placePass: 'Password',
-    error: null,
-    autofill: false,
-    valid: false,
-    email: null,
-    emailRules: [
-      (v) => !!v || 'E-mail is required',
-      (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid'
-    ],
-    password: null,
-    nameRules: [
-      (v) => !!v || 'Password is required',
-      (v) => (v && v.length >= 10) || 'Password must be more than 10 characters'
-    ]
-  }),
-  computed: {
-    counter() {
-      return this.$store.state.counter
-    },
-    user() {
-      return this.$strapi.user
-    }
-  },
-  methods: {
-    async register() {
-      this.error = null
-      try {
-        this.$axios.setToken(false)
-        await this.$axios.post('auth/local/register', {
-          username: this.username,
-          email: this.email,
-          password: this.password
-        })
-        this.$alerter.showMessage({ content: 'Please confirm your email', value: 'success' })
-        this.clear()
-        this.toggleRegister()
-      } catch (e) {
-        this.error = e.response.data.message[0].messages[0].message
-        this.$alerter.showMessage({ content: this.error, value: 'error' })
-      }
-    },
-    async login() {
-      this.error = null
-      try {
-        await this.$auth.loginWith('local', {
-          data: {
-            identifier: this.username,
-            password: this.password
-          }
-        })
-        this.$alerter.showMessage({
-          content: 'Welcome ' + this.$auth.user.username,
-          value: 'success'
-        })
-      } catch (e) {
-        this.error = e.response.data.message[0].messages[0].message
-        this.$notifier.showMessage({ content: this.error, color: 'error', timeout: 3000 })
-      }
-    },
-    clear() {
-      this.$refs.form.reset()
-      this.$refs.username.focus()
-    },
-    toggleRegister() {
-      if (!this.registered) {
-        this.status = 'Register'
-        this.btnStatus = 'Register'
-        this.btnRegister = 'Already a User'
-        this.registered = true
-      } else {
-        this.status = 'Login'
-        this.btnStatus = 'Submit'
-        this.btnRegister = 'Register'
-        this.registered = false
-      }
-    },
-    checkSend() {
-      if (this.registered) {
-        this.register()
-      } else {
-        this.login()
-      }
-    }
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useUserStore } from '~/stores/user'
+import { navigateTo } from '#app'
+
+interface StrapiAuthResponse {
+  user: {
+    id: number
+    username: string
+    email: string
+  }
+  jwt: string
+}
+
+interface StrapiPlugin {
+  login(data: { identifier: string; password: string }): Promise<StrapiAuthResponse>
+  register(data: { username: string; email: string; password: string }): Promise<StrapiAuthResponse>
+}
+
+interface AlertMessage {
+  content: string
+  value: 'success' | 'error' | 'info' | 'warning'
+}
+
+interface AlerterPlugin {
+  showMessage(message: AlertMessage): void
+}
+
+interface NuxtAppPlugins {
+  $strapi: StrapiPlugin
+  $alerter: AlerterPlugin
+}
+
+const userStore = useUserStore()
+const { $strapi, $alerter } = useNuxtApp() as unknown as NuxtAppPlugins
+
+const form = ref<any>(null)
+const username = ref('')
+const email = ref('')
+const password = ref('')
+const valid = ref(false)
+const registered = ref(false)
+const error = ref('')
+
+const status = ref('Login')
+const btnStatus = ref('Submit')
+const btnRegister = ref('Register')
+
+const emailRules = [
+  (v: string) => !!v || 'E-mail is required',
+  (v: string) => /.+@.+\..+/.test(v) || 'E-mail must be valid'
+]
+
+const passwordRules = [
+  (v: string) => !!v || 'Password is required',
+  (v: string) => (v && v.length >= 6) || 'Password must be at least 6 characters'
+]
+
+const clear = () => {
+  form.value?.reset()
+  username.value = ''
+  email.value = ''
+  password.value = ''
+}
+
+const toggleRegister = () => {
+  if (!registered.value) {
+    status.value = 'Register'
+    btnStatus.value = 'Register'
+    btnRegister.value = 'Already a User'
+    registered.value = true
+  } else {
+    status.value = 'Login'
+    btnStatus.value = 'Submit'
+    btnRegister.value = 'Register'
+    registered.value = false
+  }
+  clear()
+}
+
+const login = async () => {
+  error.value = ''
+  try {
+    console.log('Attempting login with:', { identifier: username.value, password: '***' })
+    const response = await $strapi.login({
+      identifier: username.value,
+      password: password.value
+    })
+
+    console.log('Login successful:', { userId: response.user.id, username: response.user.username })
+
+    // Update user store with complete user object
+    await userStore.setUser(response.user)
+
+    $alerter.showMessage({
+      content: 'Welcome ' + response.user.username,
+      value: 'success'
+    })
+
+    // Navigate to home page
+    await navigateTo('/')
+  } catch (e: any) {
+    console.error('Login error:', e)
+    error.value = e.response?.data?.error?.message || e.message || 'Login failed'
+    $alerter.showMessage({ content: error.value, value: 'error' })
   }
 }
+
+const register = async () => {
+  error.value = ''
+  try {
+    console.log('Attempting registration with:', { username: username.value, email: email.value })
+    const response = await $strapi.register({
+      username: username.value,
+      email: email.value,
+      password: password.value
+    })
+
+    console.log('Registration successful:', {
+      userId: response.user.id,
+      username: response.user.username
+    })
+    $alerter.showMessage({ content: 'Registration successful! Please log in.', value: 'success' })
+    clear()
+    toggleRegister()
+  } catch (e: any) {
+    console.error('Registration error:', e)
+    error.value = e.response?.data?.error?.message || e.message || 'Registration failed'
+    $alerter.showMessage({ content: error.value, value: 'error' })
+  }
+}
+
+const checkSend = async (event: Event) => {
+  event.preventDefault()
+  console.log('Form submitted:', { registered: registered.value, username: username.value })
+
+  if (!username.value || !password.value || (registered.value && !email.value)) {
+    $alerter.showMessage({ content: 'Please fill in all required fields', value: 'error' })
+    return
+  }
+
+  if (registered.value) {
+    await register()
+  } else {
+    await login()
+  }
+}
+
+onMounted(() => {
+  // Check if already logged in
+  if (userStore.isLoggedIn) {
+    navigateTo('/')
+  }
+})
 </script>
+
 <style>
 .v-input input:invalid,
 input:-webkit-autofill {

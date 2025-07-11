@@ -43,7 +43,7 @@ export default {
   css: [],
 
   // Plugins to run before rendering page: https://go.nuxtjs.dev/config-plugins
-  plugins: ['~/plugins/notifier.js', '~/plugins/alerter.js'],
+  plugins: ['~/plugins/notifier.js', '~/plugins/alerter.js', '~/plugins/time-service.js'],
 
   // Auto import components: https://go.nuxtjs.dev/config-components
   components: true,
@@ -53,7 +53,8 @@ export default {
     // https://go.nuxtjs.dev/eslint
     '@nuxtjs/eslint-module',
     // https://go.nuxtjs.dev/vuetify
-    '@nuxtjs/vuetify'
+    '@nuxtjs/vuetify',
+    '@nuxtjs/pwa'
   ],
 
   // Modules: https://go.nuxtjs.dev/config-modules
@@ -82,6 +83,70 @@ export default {
           logout: false
         }
       }
+    }
+  },
+
+  pwa: {
+    icon: {
+      fileName: 'icon.png'
+    },
+    manifest: {
+      name: 'TimeForge - Time Tracking',
+      short_name: 'TimeForge',
+      description: 'Professional time tracking and timesheet management',
+      theme_color: '#5746ea',
+      background_color: '#0d1323',
+      display: 'standalone',
+      start_url: '/',
+      lang: 'en',
+      categories: ['productivity', 'business']
+    },
+    workbox: {
+      enabled: true,
+      dev: false,
+      swDest: 'sw.js',
+      runtimeCaching: [
+        {
+          urlPattern: '^https://fonts\\.googleapis\\.com/.*',
+          handler: 'cacheFirst',
+          method: 'GET',
+          strategyOptions: { cacheableResponse: { statuses: [0, 200] } }
+        },
+        {
+          urlPattern: process.env.API_AUTH_URL + '.*',
+          handler: 'networkFirst',
+          method: 'GET',
+          strategyOptions: {
+            cacheName: 'api-cache',
+            cacheableResponse: { statuses: [0, 200] },
+            networkTimeoutSeconds: 10
+          }
+        },
+        {
+          urlPattern: '/_nuxt/.*',
+          handler: 'cacheFirst',
+          strategyOptions: {
+            cacheName: 'nuxt-static',
+            cacheableResponse: { statuses: [0, 200] }
+          }
+        },
+        {
+          urlPattern: '/',
+          handler: 'networkFirst',
+          strategyOptions: {
+            cacheName: 'pages',
+            cacheableResponse: { statuses: [0, 200] }
+          }
+        }
+      ],
+      offlineAssets: ['/favicon.png', '/icon.png']
+    },
+    meta: {
+      charset: 'utf-8',
+      viewport: 'width=device-width, initial-scale=1',
+      mobileApp: true,
+      mobileAppIOS: true,
+      appleStatusBarStyle: 'black-translucent'
     }
   },
 

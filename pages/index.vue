@@ -161,454 +161,686 @@
   </v-container>
 </template>
 
-<script>
-import { mapGetters } from 'vuex'
+<script setup lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useUserStore } from '~/stores/user'
+import { useNuxtApp, navigateTo } from 'nuxt/app'
 
-export default {
-  middleware: 'auth',
-  data() {
-    return {
-      lunchActive: false,
-      milesActive: false,
-      errors: null,
-      datestamp: '',
-      timestamp: '',
-      success: null,
-      clockedIn: false,
-      startTime: null,
-      endTime: null,
-      startLunch: null,
-      endLunch: null,
-      startMiles: null,
-      endMiles: null,
-      breakStartTime: null,
-      breakDuration: 0,
-      breakHistory: [],
-      counter: 0,
-      hours: 0,
-      today: '',
-      buttons: [
-        {
-          text: 'Timesheet',
-          icon: 'mdi-newspaper',
-          route: '/dashboard',
-          iconColor: 'green',
-          disabled: false
-        },
-        {
-          text: 'Mileage',
-          icon: 'mdi-car',
-          handler: 'toggleMileage',
-          iconColor: 'green',
-          activeKey: 'milesActive',
-          disabled: false
-        }
-      ],
-      isOnBreak: false,
-      isOnLunch: false,
-      breakElapsed: 0,
-      breakInterval: null
-    }
+interface AlertMessage {
+  content: string
+  value: 'success' | 'error' | 'info' | 'warning'
+}
+
+interface TimerState {
+  clockedIn: boolean
+  startTime: string | null
+  endTime: string | null
+  startLunch: string | null
+  endLunch: string | null
+  isOnBreak: boolean
+  isOnLunch: boolean
+}
+
+interface BreakState {
+  startTime: string | null
+}
+
+interface NotificationData {
+  title: string
+  body: string
+  delay: number
+  tag: string
+}
+
+interface NuxtApp {
+  $alerter: {
+    showMessage(message: AlertMessage): void
+  }
+  $timerService: {
+    sendTimerState(state: TimerState): void
+    sendBreakState(state: BreakState | null): void
+    scheduleBreakReminders(startTime: string): void
+  }
+  $fetch: <T = any>(url: string, options?: any) => Promise<T>
+}
+
+const nuxtApp = useNuxtApp() as unknown as NuxtApp
+
+const userStore = useUserStore()
+
+const lunchActive = ref(false)
+const milesActive = ref(false)
+const errors = ref(null)
+const datestamp = ref('')
+const timestamp = ref('')
+const success = ref(null)
+const clockedIn = ref(false)
+const startTime = ref(null)
+const endTime = ref(null)
+const startLunch = ref(null)
+const endLunch = ref(null)
+const startMiles = ref(null)
+const endMiles = ref(null)
+const breakStartTime = ref(null)
+const breakDuration = ref(0)
+const breakHistory = ref([])
+const counter = ref(0)
+const hours = ref(0)
+const today = ref('')
+const isOnBreak = ref(false)
+const isOnLunch = ref(false)
+const breakElapsed = ref(0)
+const breakInterval = ref(null)
+
+const buttons = [
+  {
+    text: 'Timesheet',
+    icon: 'mdi-newspaper',
+    route: '/dashboard',
+    iconColor: 'green',
+    disabled: false
   },
-  computed: {
-    ...mapGetters(['loggedInUser']),
-    canTakeLunch() {
-      return this.clockedIn && !this.endTime && !this.endLunch
-    },
-    statusMessage() {
-      if (!this.clockedIn) return 'Not clocked in'
-      if (this.isOnBreak) return `On break (${this.breakTimeFormatted})`
-      if (this.isOnLunch) return 'On lunch break'
-      return 'Clocked in'
-    },
-    canClockIn() {
-      return !this.clockedIn && !this.startTime
-    },
-    canClockOut() {
-      return this.clockedIn && !this.endTime && !this.isOnBreak && !this.isOnLunch
-    },
-    currentBreakDuration() {
-      if (!this.breakStartTime) return 0
-      const now = new Date()
-      const start = new Date(this.breakStartTime)
-      return Math.round((now - start) / 60000)
-    },
-    breakTimeFormatted() {
-      const minutes = Math.floor(this.breakElapsed / 60)
-      const seconds = this.breakElapsed % 60
-      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-    },
-    breakProgress() {
-      return Math.min(100, (this.breakElapsed / (15 * 60)) * 100)
-    },
-    breakColor() {
-      if (this.breakElapsed >= 15 * 60) return 'error'
-      if (this.breakElapsed >= 14 * 60) return 'warning'
-      return 'success'
-    },
-    breakStatus() {
-      if (this.breakElapsed >= 15 * 60) return 'Break time exceeded!'
-      if (this.breakElapsed >= 14 * 60) return 'Break ending soon!'
-      return 'Enjoy your break'
-    },
-    breakCardColor() {
-      return {
-        'warning-bg': this.breakElapsed >= 14 * 60 && this.breakElapsed < 15 * 60,
-        'error-bg': this.breakElapsed >= 15 * 60
-      }
-    }
-  },
-  watch: {
-    clockedIn(newValue) {
-      localStorage.clockStatus = JSON.stringify(newValue)
-    },
-    startTime(newTime) {
-      localStorage.startTime = newTime
-    },
-    endTime(newTime) {
-      localStorage.endTime = newTime
-    },
-    startLunch(newTime) {
-      localStorage.startLunch = newTime
-    },
-    endLunch(newTime) {
-      localStorage.endLunch = newTime
-    },
-    startMiles(newTime) {
-      localStorage.startMiles = newTime
-    },
-    endMiles(newTime) {
-      localStorage.endMiles = newTime
-    },
-    breakDuration(newDuration) {
-      localStorage.breakDuration = newDuration
-    },
-    breakHistory(newHistory) {
-      localStorage.breakHistory = JSON.stringify(newHistory)
-    },
-    isOnBreak(newVal) {
-      if (newVal) {
-        this.$alerter.showMessage({
-          content: 'Break started - Take a moment to relax!',
-          value: 'info'
-        })
-      }
-    }
-  },
-  mounted() {
-    const tmpDate = new Date()
-    this.getDateTime()
-    this.today = tmpDate.toISOString().slice(0, 10)
+  {
+    text: 'Mileage',
+    icon: 'mdi-car',
+    handler: 'toggleMileage',
+    iconColor: 'green',
+    activeKey: 'milesActive',
+    disabled: false
+  }
+]
 
-    if (localStorage.clockStatus) {
-      this.clockedIn = JSON.parse(localStorage.clockStatus)
-    }
-    if (localStorage.startTime) {
-      this.startTime = localStorage.startTime
-      this.clockedIn = true
-    }
-    if (localStorage.endTime) {
-      this.endTime = localStorage.endTime
-      this.clockedIn = false
-    }
-    if (localStorage.startLunch) {
-      this.startLunch = localStorage.startLunch
-    }
-    if (localStorage.endLunch) {
-      this.endLunch = localStorage.endLunch
-    }
-    if (localStorage.startMiles) {
-      this.startMiles = localStorage.startMiles
-    }
-    if (localStorage.endMiles) {
-      this.endMiles = localStorage.endMiles
-    }
-    if (localStorage.breakDuration) {
-      this.breakDuration = Number(localStorage.breakDuration)
-    }
-    if (localStorage.breakHistory) {
-      this.breakHistory = JSON.parse(localStorage.breakHistory)
-    }
+// Computed properties
+const canTakeLunch = computed(() => clockedIn.value && !endTime.value && !endLunch.value)
+const statusMessage = computed(() => {
+  if (!clockedIn.value) return 'Not clocked in'
+  if (isOnBreak.value) return `On break (${breakTimeFormatted.value})`
+  if (isOnLunch.value) return 'On lunch break'
+  return 'Clocked in'
+})
+const canClockIn = computed(() => !clockedIn.value && !startTime.value)
+const canClockOut = computed(
+  () => clockedIn.value && !endTime.value && !isOnBreak.value && !isOnLunch.value
+)
+const currentBreakDuration = computed(() => {
+  if (!breakStartTime.value) return 0
+  const now = new Date().getTime()
+  const start = new Date(breakStartTime.value).getTime()
+  return Math.round((now - start) / 60000)
+})
+const breakTimeFormatted = computed(() => {
+  const minutes = Math.floor(breakElapsed.value / 60)
+  const seconds = breakElapsed.value % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+})
+const breakProgress = computed(() => Math.min(100, (breakElapsed.value / (15 * 60)) * 100))
+const breakColor = computed(() => {
+  if (breakElapsed.value >= 15 * 60) return 'error'
+  if (breakElapsed.value >= 14 * 60) return 'warning'
+  return 'success'
+})
+const breakStatus = computed(() => {
+  if (breakElapsed.value >= 15 * 60) return 'Break time exceeded!'
+  if (breakElapsed.value >= 14 * 60) return 'Break ending soon!'
+  return 'Enjoy your break'
+})
+const breakCardColor = computed(() => ({
+  'warning-bg': breakElapsed.value >= 14 * 60 && breakElapsed.value < 15 * 60,
+  'error-bg': breakElapsed.value >= 15 * 60
+}))
 
-    // Restore break state
-    const savedBreak = localStorage.getItem('breakState')
-    if (savedBreak) {
-      try {
-        const { startTime } = JSON.parse(savedBreak)
-        if (startTime) {
-          const now = new Date()
-          const start = new Date(startTime)
-          // Calculate elapsed time including time while away
-          this.breakElapsed = Math.floor((now - start) / 1000)
-          this.breakStartTime = start
-          this.isOnBreak = true
-          this.startBreakTimer()
-        }
-      } catch (e) {
-        localStorage.removeItem('breakState')
+// Watch effects
+watch(clockedIn, (newValue) => {
+  localStorage.clockStatus = JSON.stringify(newValue)
+})
+watch(startTime, (newTime) => {
+  localStorage.startTime = newTime
+})
+watch(endTime, (newTime) => {
+  localStorage.endTime = newTime
+})
+watch(startLunch, (newTime) => {
+  localStorage.startLunch = newTime
+})
+watch(endLunch, (newTime) => {
+  localStorage.endLunch = newTime
+})
+watch(startMiles, (newTime) => {
+  localStorage.startMiles = newTime
+})
+watch(endMiles, (newTime) => {
+  localStorage.endMiles = newTime
+})
+watch(breakDuration, (newDuration) => {
+  localStorage.breakDuration = newDuration
+})
+watch(breakHistory, (newHistory) => {
+  localStorage.breakHistory = JSON.stringify(newHistory)
+})
+watch(isOnBreak, (newVal) => {
+  if (newVal) {
+    nuxtApp.$alerter.showMessage({
+      content: 'Break started - Take a moment to relax!',
+      value: 'info'
+    })
+  }
+})
+
+// Lifecycle hooks
+onMounted(() => {
+  syncTimerStateWithServiceWorker()
+  const tmpDate = new Date()
+  getDateTime()
+  today.value = tmpDate.toISOString().slice(0, 10)
+
+  if (localStorage.clockStatus) {
+    clockedIn.value = JSON.parse(localStorage.clockStatus)
+  }
+  if (localStorage.startTime) {
+    startTime.value = localStorage.startTime
+    clockedIn.value = true
+  }
+  if (localStorage.endTime) {
+    endTime.value = localStorage.endTime
+    clockedIn.value = false
+  }
+  if (localStorage.startLunch) {
+    startLunch.value = localStorage.startLunch
+  }
+  if (localStorage.endLunch) {
+    endLunch.value = localStorage.endLunch
+  }
+  if (localStorage.startMiles) {
+    startMiles.value = localStorage.startMiles
+  }
+  if (localStorage.endMiles) {
+    endMiles.value = localStorage.endMiles
+  }
+  if (localStorage.breakDuration) {
+    breakDuration.value = Number(localStorage.breakDuration)
+  }
+  if (localStorage.breakHistory) {
+    breakHistory.value = JSON.parse(localStorage.breakHistory)
+  }
+
+  // Restore break state
+  const savedBreak = localStorage.getItem('breakState')
+  if (savedBreak) {
+    try {
+      const { startTime } = JSON.parse(savedBreak)
+      if (startTime) {
+        const now = new Date().getTime()
+        const start = new Date(startTime).getTime()
+        // Calculate elapsed time including time while away
+        breakElapsed.value = Math.floor((now - start) / 1000)
+        breakStartTime.value = new Date(startTime)
+        isOnBreak.value = true
+        startBreakTimer()
       }
+    } catch (e) {
+      localStorage.removeItem('breakState')
     }
+  }
+})
 
-    setInterval(this.getDateTime, 1000)
-    setInterval(this.updateBreakDuration, 60000)
-  },
-  beforeDestroy() {
-    this.clearBreakTimer()
-  },
-  methods: {
-    formatDuration(minutes) {
-      const hrs = Math.floor(minutes / 60)
-      const mins = minutes % 60
-      return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`
-    },
-    updateBreakDuration() {
-      if (this.breakStartTime) {
-        this.counter++
-      }
-    },
-    toggleBreak() {
-      if (this.isOnBreak) {
-        const finalDuration = this.breakTimeFormatted
-        this.isOnBreak = false
-        this.clearBreakTimer()
-        localStorage.removeItem('breakState')
-        this.$alerter.showMessage({
-          content: `Break ended - Duration: ${finalDuration}`,
-          value: 'success'
-        })
-      } else {
-        this.isOnBreak = true
-        this.breakStartTime = new Date()
-        this.breakElapsed = 0
-        this.startBreakTimer()
-        localStorage.setItem(
-          'breakState',
-          JSON.stringify({
-            startTime: this.breakStartTime
-          })
-        )
-        this.$alerter.showMessage({
-          content: 'Break started',
-          value: 'info'
-        })
-      }
-    },
-    startBreakTimer() {
-      if (this.breakInterval) return
-      this.breakInterval = setInterval(() => {
-        const now = new Date()
-        this.breakElapsed = Math.floor((now - this.breakStartTime) / 1000)
-        // Save state every second to ensure accuracy
-        localStorage.setItem(
-          'breakState',
-          JSON.stringify({
-            startTime: this.breakStartTime
-          })
-        )
-      }, 1000)
-    },
-    clearBreakTimer() {
-      if (this.breakInterval) {
-        clearInterval(this.breakInterval)
-        this.breakInterval = null
-      }
-      this.breakStartTime = null
-      this.breakElapsed = 0
-    },
-    getDateTime() {
-      const today = new Date()
-      const month = today.toLocaleString('en-us', { month: 'long' })
-      const hour = today.getHours()
-      const suffix = hour >= 12 ? 'PM' : 'AM'
-      const hours = ((hour + 11) % 12) + 1
-      let strMonth = '' + today.getMinutes()
-      if (strMonth.length === 1) {
-        strMonth = '0' + strMonth
-      }
-      const date = month + ' ' + today.getDate() + ', ' + today.getFullYear()
-      const time = hours + ':' + strMonth + suffix
-      this.datestamp = date
-      this.timestamp = time
-    },
-    getTimeStamp() {
-      return new Date().toISOString()
-    },
-    lunch() {
-      if (!this.canTakeLunch) {
-        this.$alerter.showMessage({
-          content: 'You must be clocked in to take lunch',
-          value: 'error'
-        })
-        return
-      }
+onBeforeUnmount(() => {
+  clearBreakTimer()
+})
 
-      if (!this.startLunch) {
-        this.startLunch = this.getTimeStamp()
-        this.$alerter.showMessage({
-          content: 'Lunch break started',
-          value: 'success'
-        })
-      } else if (!this.endLunch) {
-        this.endLunch = this.getTimeStamp()
-        this.$alerter.showMessage({
-          content: 'Lunch break ended',
-          value: 'success'
-        })
-      } else {
-        this.$alerter.showMessage({
-          content: 'You have already taken your lunch break',
-          value: 'error'
-        })
-      }
-    },
-    mileage() {
-      if (this.startMiles == null && this.endMiles == null) {
-        this.startMiles = prompt('Enter your Start Miles')
-        this.milesActive = true
-      } else if (this.endMiles == null) {
-        this.endMiles = prompt('Enter your End Miles')
-      } else {
-        this.$alerter.showMessage({
-          content: 'Already entered mileage',
-          value: 'error'
-        })
-      }
-    },
-    clockIn() {
-      if (!this.canClockIn) {
-        this.$alerter.showMessage({
-          content: 'You are already clocked in',
-          value: 'error'
-        })
-        return
-      }
+// Methods
+function formatDuration(minutes) {
+  const hrs = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`
+}
 
-      this.clockedIn = true
-      this.startTime = this.getTimeStamp()
-      this.breakDuration = 0
-      this.breakHistory = []
-      this.$alerter.showMessage({
-        content: 'Successfully clocked in',
-        value: 'success'
+function updateBreakDuration() {
+  if (breakStartTime.value) {
+    counter.value++
+  }
+}
+
+function toggleBreak() {
+  if (isOnBreak.value) {
+    nuxtApp.$timerService.sendBreakState(null)
+    const finalDuration = breakTimeFormatted.value
+    isOnBreak.value = false
+    clearBreakTimer()
+    localStorage.removeItem('breakState')
+    nuxtApp.$alerter.showMessage({
+      content: `Break ended - Duration: ${finalDuration}`,
+      value: 'success'
+    })
+  } else {
+    const breakState = { startTime: breakStartTime.value }
+    nuxtApp.$timerService.sendBreakState(breakState)
+    nuxtApp.$timerService.scheduleBreakReminders(breakStartTime.value)
+    isOnBreak.value = true
+    breakStartTime.value = new Date()
+    breakElapsed.value = 0
+    startBreakTimer()
+    localStorage.setItem(
+      'breakState',
+      JSON.stringify({
+        startTime: breakStartTime.value
       })
-    },
-    clockOut() {
-      if (this.isOnBreak) {
-        this.$alerter.showMessage({
-          content: 'Please end your break before clocking out',
-          value: 'error'
-        })
-        return
-      }
-      if (!this.canClockOut) {
-        this.$alerter.showMessage({
-          content: 'Cannot clock out: You are not clocked in',
-          value: 'error'
-        })
-        return
-      }
+    )
+    nuxtApp.$alerter.showMessage({
+      content: 'Break started',
+      value: 'info'
+    })
+  }
+}
 
-      if (this.breakStartTime) {
-        this.toggleBreak()
-      }
+function startBreakTimer() {
+  if (breakInterval.value) return
+  breakInterval.value = setInterval(() => {
+    const now = new Date().getTime()
+    const start = new Date(breakStartTime.value).getTime()
+    breakElapsed.value = Math.floor((now - start) / 1000)
+    // Save state every second to ensure accuracy
+    localStorage.setItem(
+      'breakState',
+      JSON.stringify({
+        startTime: breakStartTime.value
+      })
+    )
+  }, 1000)
+}
 
-      this.clockedIn = false
-      this.endTime = this.getTimeStamp()
-      this.postTime()
-    },
-    async postTime() {
-      this.errors = null
-      try {
-        await this.$axios.post('/timesheets', {
-          startTime: this.startTime,
-          endTime: this.endTime,
-          startLunch: null,
-          endLunch: null,
-          startMiles: this.startMiles,
-          endMiles: this.endMiles,
-          date: this.today,
-          owner: this.loggedInUser.username
-        })
-        this.success = 'Time entry submitted successfully'
-        this.$alerter.showMessage({ content: this.success, value: 'success' })
-        this.clearLocalStorage()
-        this.$router.push('/dashboard')
-      } catch (e) {
-        this.errors = e.response.data.message[0].messages[0].message
-        this.$alerter.showMessage({ content: this.errors, value: 'error' })
-      }
-    },
-    clearLocalStorage() {
-      localStorage.clear()
-    },
-    getButtonActive(btn) {
-      if (btn.text === 'Break') {
-        return !!this.breakStartTime
-      }
-      return btn.activeKey ? this[btn.activeKey] : false
-    },
-    handleButtonClick(btn) {
-      if (btn.disabled) {
-        this.$alerter.showMessage({
-          content: 'This action is not available right now',
-          value: 'warning'
-        })
-        return
-      }
+function clearBreakTimer() {
+  if (breakInterval.value) {
+    clearInterval(breakInterval.value)
+    breakInterval.value = null
+  }
+  breakStartTime.value = null
+  breakElapsed.value = 0
+}
 
-      if (btn.handler && typeof this[btn.handler] === 'function') {
-        this[btn.handler]()
-      }
-    },
-    toggleMileage() {
-      this.milesActive = !this.milesActive
-    },
-    toggleLunch() {
-      if (!this.clockedIn) {
-        this.$alerter.showMessage({
-          content: 'You must be clocked in to take lunch',
-          value: 'error'
-        })
-        return
-      }
+function getDateTime() {
+  const today = new Date()
+  const month = today.toLocaleString('en-us', { month: 'long' })
+  const hour = today.getHours()
+  const suffix = hour >= 12 ? 'PM' : 'AM'
+  const hours = ((hour + 11) % 12) + 1
+  let strMonth = '' + today.getMinutes()
+  if (strMonth.length === 1) {
+    strMonth = '0' + strMonth
+  }
+  const date = month + ' ' + today.getDate() + ', ' + today.getFullYear()
+  const time = hours + ':' + strMonth + suffix
+  datestamp.value = date
+  timestamp.value = time
+}
 
-      if (!this.startLunch) {
-        this.startLunch = this.getTimeStamp()
-        this.isOnLunch = true
-        this.$alerter.showMessage({
-          content: 'Lunch break started',
-          value: 'success'
-        })
-      } else if (!this.endLunch) {
-        this.endLunch = this.getTimeStamp()
-        this.isOnLunch = false
-        this.$alerter.showMessage({
-          content: 'Lunch break ended',
-          value: 'success'
-        })
-      } else {
-        this.$alerter.showMessage({
-          content: 'You have already taken your lunch break',
-          value: 'error'
-        })
+function getTimeStamp() {
+  return new Date().toISOString()
+}
+
+function lunch() {
+  if (!canTakeLunch.value) {
+    nuxtApp.$alerter.showMessage({
+      content: 'You must be clocked in to take lunch',
+      value: 'error'
+    })
+    return
+  }
+
+  if (!startLunch.value) {
+    startLunch.value = getTimeStamp()
+    nuxtApp.$alerter.showMessage({
+      content: 'Lunch break started',
+      value: 'success'
+    })
+  } else if (!endLunch.value) {
+    endLunch.value = getTimeStamp()
+    nuxtApp.$alerter.showMessage({
+      content: 'Lunch break ended',
+      value: 'success'
+    })
+  } else {
+    nuxtApp.$alerter.showMessage({
+      content: 'You have already taken your lunch break',
+      value: 'error'
+    })
+  }
+}
+
+function mileage() {
+  if (startMiles.value == null && endMiles.value == null) {
+    startMiles.value = prompt('Enter your Start Miles')
+    milesActive.value = true
+  } else if (endMiles.value == null) {
+    endMiles.value = prompt('Enter your End Miles')
+  } else {
+    nuxtApp.$alerter.showMessage({
+      content: 'Already entered mileage',
+      value: 'error'
+    })
+  }
+}
+
+function clockIn() {
+  if (!canClockIn.value) {
+    nuxtApp.$alerter.showMessage({
+      content: 'You are already clocked in',
+      value: 'error'
+    })
+    return
+  }
+  syncTimerStateWithServiceWorker()
+
+  clockedIn.value = true
+  startTime.value = getTimeStamp()
+  breakDuration.value = 0
+  breakHistory.value = []
+  nuxtApp.$alerter.showMessage({
+    content: 'Successfully clocked in',
+    value: 'success'
+  })
+}
+
+function clockOut() {
+  if (isOnBreak.value) {
+    nuxtApp.$alerter.showMessage({
+      content: 'Please end your break before clocking out',
+      value: 'error'
+    })
+    return
+  }
+  if (!canClockOut.value) {
+    nuxtApp.$alerter.showMessage({
+      content: 'Cannot clock out: You are not clocked in',
+      value: 'error'
+    })
+    return
+  }
+
+  if (breakStartTime.value) {
+    toggleBreak()
+  }
+
+  clockedIn.value = false
+  endTime.value = getTimeStamp()
+  postTime()
+}
+
+async function postTime() {
+  errors.value = null
+  try {
+    const { $fetch } = nuxtApp
+    await $fetch('/api/timesheets', {
+      method: 'POST',
+      body: {
+        startTime: startTime.value,
+        endTime: endTime.value,
+        startLunch: null,
+        endLunch: null,
+        startMiles: startMiles.value,
+        endMiles: endMiles.value,
+        date: today.value,
+        owner: userStore.username
       }
+    })
+    success.value = 'Time entry submitted successfully'
+    nuxtApp.$alerter.showMessage({ content: success.value, value: 'success' })
+    clearLocalStorage()
+    navigateTo('/dashboard')
+  } catch (e) {
+    errors.value = e.response?.data?.message?.[0]?.messages?.[0]?.message || 'An error occurred'
+    nuxtApp.$alerter.showMessage({ content: errors.value, value: 'error' })
+  }
+}
+
+function clearLocalStorage() {
+  localStorage.clear()
+}
+
+function getButtonActive(btn) {
+  if (btn.text === 'Break') {
+    return !!breakStartTime.value
+  }
+  return btn.activeKey ? this[btn.activeKey] : false
+}
+
+function handleButtonClick(btn) {
+  if (btn.disabled) {
+    nuxtApp.$alerter.showMessage({
+      content: 'This action is not available right now',
+      value: 'warning'
+    })
+    return
+  }
+
+  if (btn.handler && typeof this[btn.handler] === 'function') {
+    this[btn.handler]()
+  }
+}
+
+function toggleMileage() {
+  milesActive.value = !milesActive.value
+}
+
+function toggleLunch() {
+  if (!clockedIn.value) {
+    nuxtApp.$alerter.showMessage({
+      content: 'You must be clocked in to take lunch',
+      value: 'error'
+    })
+    return
+  }
+
+  if (!startLunch.value) {
+    startLunch.value = getTimeStamp()
+    isOnLunch.value = true
+    nuxtApp.$alerter.showMessage({
+      content: 'Lunch break started',
+      value: 'success'
+    })
+  } else if (!endLunch.value) {
+    endLunch.value = getTimeStamp()
+    isOnLunch.value = false
+    nuxtApp.$alerter.showMessage({
+      content: 'Lunch break ended',
+      value: 'success'
+    })
+  } else {
+    nuxtApp.$alerter.showMessage({
+      content: 'You have already taken your lunch break',
+      value: 'error'
+    })
+  }
+}
+
+function syncTimerStateWithServiceWorker() {
+  const { $timerService } = nuxtApp
+  if ($timerService) {
+    const timerState = {
+      clockedIn: clockedIn.value,
+      startTime: startTime.value,
+      endTime: endTime.value,
+      startLunch: startLunch.value,
+      endLunch: endLunch.value,
+      isOnBreak: isOnBreak.value,
+      isOnLunch: isOnLunch.value
     }
+
+    $timerService.sendTimerState(timerState)
   }
 }
 </script>
 
 <style scoped>
-.warning-bg {
-  background-color: #fff3e0 !important;
-}
-.error-bg {
-  background-color: #ffebee !important;
-}
 .v-btn.orange {
   background-color: #ff9800 !important;
   color: white !important;
 }
+
 .v-btn.orange.darken-2 {
   background-color: #f57c00 !important;
+}
+
+.v-btn.success {
+  background-color: #4caf50 !important;
+  color: white !important;
+}
+
+.v-btn.success.darken-2 {
+  background-color: #388e3c !important;
+}
+
+.v-btn.error {
+  background-color: #f44336 !important;
+  color: white !important;
+}
+
+.v-btn.error.darken-2 {
+  background-color: #d32f2f !important;
+}
+
+.v-btn.white {
+  background-color: #ffffff !important;
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+.v-btn.green {
+  background-color: #4caf50 !important;
+  color: white !important;
+}
+
+.warning-bg {
+  background-color: #fff3e0 !important;
+}
+
+.error-bg {
+  background-color: #ffebee !important;
+}
+
+.text-h2 {
+  font-size: 3.75rem !important;
+  font-weight: 300;
+  line-height: 3.75rem;
+  letter-spacing: -0.0083333333em !important;
+}
+
+.text-h4 {
+  font-size: 2.125rem !important;
+  font-weight: 400;
+  line-height: 2.5rem;
+  letter-spacing: 0.0073529412em !important;
+}
+
+.text-h5 {
+  font-size: 1.5rem !important;
+  font-weight: 400;
+  line-height: 2rem;
+  letter-spacing: 0em !important;
+}
+
+.text-h6 {
+  font-size: 1.25rem !important;
+  font-weight: 500;
+  line-height: 2rem;
+  letter-spacing: 0.0125em !important;
+}
+
+.text-subtitle-1 {
+  font-size: 1rem !important;
+  font-weight: 400;
+  line-height: 1.75rem;
+  letter-spacing: 0.009375em !important;
+}
+
+.text-body-1 {
+  font-size: 1rem !important;
+  font-weight: 400;
+  line-height: 1.5rem;
+  letter-spacing: 0.03125em !important;
+}
+
+.fill-height {
+  height: 100% !important;
+}
+
+.d-flex {
+  display: flex !important;
+}
+
+.flex-column {
+  flex-direction: column !important;
+}
+
+.flex-wrap {
+  flex-wrap: wrap !important;
+}
+
+.justify-center {
+  justify-content: center !important;
+}
+
+.justify-space-between {
+  justify-content: space-between !important;
+}
+
+.align-center {
+  align-items: center !important;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+.ma-2 {
+  margin: 8px !important;
+}
+
+.ma-4 {
+  margin: 16px !important;
+}
+
+.mb-2 {
+  margin-bottom: 8px !important;
+}
+
+.mb-4 {
+  margin-bottom: 16px !important;
+}
+
+.ml-4 {
+  margin-left: 16px !important;
+}
+
+.pa-2 {
+  padding: 8px !important;
+}
+
+.pa-4 {
+  padding: 16px !important;
+}
+
+.py-16 {
+  padding-top: 64px !important;
+  padding-bottom: 64px !important;
+}
+
+.rounded-lg {
+  border-radius: 4px !important;
+}
+
+.rounded-t-xl {
+  border-top-left-radius: 12px !important;
+  border-top-right-radius: 12px !important;
+}
+
+.mb-n10 {
+  margin-bottom: -40px !important;
+}
+
+.mt-8 {
+  margin-top: 32px !important;
+}
+
+.black--text {
+  color: rgba(0, 0, 0, 0.87) !important;
 }
 </style>
