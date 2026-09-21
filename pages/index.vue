@@ -164,6 +164,7 @@
 </template>
 
 <script setup lang="ts">
+import { createClockStorage } from '~/utils/clock-storage.js'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { useNuxtApp, navigateTo } from 'nuxt/app'
@@ -206,11 +207,12 @@ interface NuxtAppPlugins {
     sendBreakState(state: BreakState | null): void
     scheduleBreakReminders(startTime: string): void
   }
-  $fetch: <T = any>(url: string, options?: any) => Promise<T>
+  $axios: { post(url: string, data: unknown): Promise<unknown> }
 }
 
 const nuxtApp = useNuxtApp() as unknown as NuxtAppPlugins
 const userStore = useUserStore()
+const clockStorage = createClockStorage(localStorage, userStore.loggedInUser?.id)
 
 const lunchActive = ref(false)
 const milesActive = ref(false)
@@ -295,31 +297,31 @@ const breakCardColor = computed(() => ({
 
 // Watch effects
 watch(clockedIn, (newValue) => {
-  localStorage.clockStatus = JSON.stringify(newValue)
+  clockStorage.setItem('clockStatus', JSON.stringify(newValue))
 })
 watch(startTime, (newTime) => {
-  localStorage.startTime = newTime
+  clockStorage.setItem('startTime', newTime)
 })
 watch(endTime, (newTime) => {
-  localStorage.endTime = newTime
+  clockStorage.setItem('endTime', newTime)
 })
 watch(startLunch, (newTime) => {
-  localStorage.startLunch = newTime
+  clockStorage.setItem('startLunch', newTime)
 })
 watch(endLunch, (newTime) => {
-  localStorage.endLunch = newTime
+  clockStorage.setItem('endLunch', newTime)
 })
 watch(startMiles, (newTime) => {
-  localStorage.startMiles = newTime
+  clockStorage.setItem('startMiles', newTime)
 })
 watch(endMiles, (newTime) => {
-  localStorage.endMiles = newTime
+  clockStorage.setItem('endMiles', newTime)
 })
 watch(breakDuration, (newDuration) => {
-  localStorage.breakDuration = newDuration
+  clockStorage.setItem('breakDuration', newDuration)
 })
 watch(breakHistory, (newHistory) => {
-  localStorage.breakHistory = JSON.stringify(newHistory)
+  clockStorage.setItem('breakHistory', JSON.stringify(newHistory))
 })
 watch(isOnBreak, (newVal) => {
   if (newVal) {
@@ -337,38 +339,38 @@ onMounted(() => {
   getDateTime()
   today.value = tmpDate.toISOString().slice(0, 10)
 
-  if (localStorage.clockStatus) {
-    clockedIn.value = JSON.parse(localStorage.clockStatus)
+  if (clockStorage.getItem('clockStatus')) {
+    clockedIn.value = JSON.parse(clockStorage.getItem('clockStatus'))
   }
-  if (localStorage.startTime) {
-    startTime.value = localStorage.startTime
+  if (clockStorage.getItem('startTime')) {
+    startTime.value = clockStorage.getItem('startTime')
     clockedIn.value = true
   }
-  if (localStorage.endTime) {
-    endTime.value = localStorage.endTime
+  if (clockStorage.getItem('endTime')) {
+    endTime.value = clockStorage.getItem('endTime')
     clockedIn.value = false
   }
-  if (localStorage.startLunch) {
-    startLunch.value = localStorage.startLunch
+  if (clockStorage.getItem('startLunch')) {
+    startLunch.value = clockStorage.getItem('startLunch')
   }
-  if (localStorage.endLunch) {
-    endLunch.value = localStorage.endLunch
+  if (clockStorage.getItem('endLunch')) {
+    endLunch.value = clockStorage.getItem('endLunch')
   }
-  if (localStorage.startMiles) {
-    startMiles.value = localStorage.startMiles
+  if (clockStorage.getItem('startMiles')) {
+    startMiles.value = clockStorage.getItem('startMiles')
   }
-  if (localStorage.endMiles) {
-    endMiles.value = localStorage.endMiles
+  if (clockStorage.getItem('endMiles')) {
+    endMiles.value = clockStorage.getItem('endMiles')
   }
-  if (localStorage.breakDuration) {
-    breakDuration.value = Number(localStorage.breakDuration)
+  if (clockStorage.getItem('breakDuration')) {
+    breakDuration.value = Number(clockStorage.getItem('breakDuration'))
   }
-  if (localStorage.breakHistory) {
-    breakHistory.value = JSON.parse(localStorage.breakHistory)
+  if (clockStorage.getItem('breakHistory')) {
+    breakHistory.value = JSON.parse(clockStorage.getItem('breakHistory'))
   }
 
   // Restore break state
-  const savedBreak = localStorage.getItem('breakState')
+  const savedBreak = clockStorage.getItem('breakState')
   if (savedBreak) {
     try {
       const { startTime } = JSON.parse(savedBreak)
@@ -382,7 +384,7 @@ onMounted(() => {
         startBreakTimer()
       }
     } catch (e) {
-      localStorage.removeItem('breakState')
+      clockStorage.removeItem('breakState')
     }
   }
 })
@@ -410,7 +412,7 @@ function toggleBreak(): void {
     const finalDuration = breakTimeFormatted.value
     isOnBreak.value = false
     clearBreakTimer()
-    localStorage.removeItem('breakState')
+    clockStorage.removeItem('breakState')
     nuxtApp.$alerter.showMessage({
       content: `Break ended - Duration: ${finalDuration}`,
       value: 'success'
@@ -424,7 +426,7 @@ function toggleBreak(): void {
     isOnBreak.value = true
     breakElapsed.value = 0
     startBreakTimer()
-    localStorage.setItem(
+    clockStorage.setItem(
       'breakState',
       JSON.stringify({
         startTime: now.toISOString()
@@ -444,7 +446,7 @@ function startBreakTimer(): void {
     const now = new Date().getTime()
     const start = breakStartTime.value.getTime()
     breakElapsed.value = Math.floor((now - start) / 1000)
-    localStorage.setItem(
+    clockStorage.setItem(
       'breakState',
       JSON.stringify({
         startTime: breakStartTime.value.toISOString()
@@ -573,19 +575,15 @@ function clockOut() {
 async function postTime(): Promise<void> {
   errors.value = null
   try {
-    const { $fetch } = nuxtApp
-    await $fetch('/api/timesheets', {
-      method: 'POST',
-      body: {
-        startTime: startTime.value,
-        endTime: endTime.value,
-        startLunch: null,
-        endLunch: null,
-        startMiles: startMiles.value,
-        endMiles: endMiles.value,
-        date: today.value,
-        owner: userStore.username
-      }
+    await nuxtApp.$axios.post('/timesheets', {
+      startTime: startTime.value,
+      endTime: endTime.value,
+      startLunch: null,
+      endLunch: null,
+      startMiles: startMiles.value,
+      endMiles: endMiles.value,
+      date: today.value,
+      owner: userStore.username
     })
     success.value = 'Time entry submitted successfully'
     nuxtApp.$alerter.showMessage({ content: success.value, value: 'success' })
@@ -599,7 +597,7 @@ async function postTime(): Promise<void> {
 }
 
 function clearLocalStorage() {
-  localStorage.clear()
+  clockStorage.clear()
 }
 
 function getButtonActive(btn: Button): boolean {

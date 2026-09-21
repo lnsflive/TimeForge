@@ -1,19 +1,5 @@
 <template>
   <v-container>
-    <v-dialog v-model="avatarDialogue">
-      <v-form ref="uploadForm" class="pa-4 primary pb-16" @submit.prevent="uploadToStrapi">
-        <v-file-input
-          persistent-placeholder
-          prepend-icon="mdi-camera"
-          name="files"
-          placeholder="Choose Image"
-          label="Change Avatar"
-          @change="checkFile"
-        />
-        <v-btn type="submit" class="float-right primary"> Submit </v-btn>
-      </v-form>
-    </v-dialog>
-
     <v-dialog v-model="payDialogue">
       <v-form ref="uploadForm" class="pa-4 primary pb-16" @submit.prevent="changeRate">
         <v-text-field
@@ -29,13 +15,14 @@
 
     <v-list subheader color="primary" rounded>
       <VListSubheader>Settings</VListSubheader>
-      <VListItem @click="avatarDialogue = !avatarDialogue">
+      <VListItem>
         <template #prepend>
           <VAvatar>
             <VImg :src="userStore.avatarImage" />
           </VAvatar>
         </template>
-        <VListItemTitle>Change Profile Picture</VListItemTitle>
+        <VListItemTitle>Profile Picture</VListItemTitle>
+        <VListItemSubtitle>Photo uploads are temporarily unavailable.</VListItemSubtitle>
         <template #append>
           <VIcon>mdi-pencil</VIcon>
         </template>
@@ -101,9 +88,7 @@ const nuxtApp = useNuxtApp() as unknown as {
 }
 const userStore = useUserStore()
 
-const avatarDialogue = ref(false)
 const payDialogue = ref(false)
-const selectedFile = ref<File | null>(null)
 const payRate = ref(0)
 const newRate = ref<number | null>(null)
 const errors = ref('')
@@ -118,27 +103,6 @@ onMounted(async () => {
     nuxtApp.$alerter.showMessage({ content: errors.value, value: 'error' })
   }
 })
-
-const checkFile = (event: File | null) => {
-  selectedFile.value = event
-}
-
-const uploadToStrapi = async () => {
-  errors.value = ''
-  const formData = new FormData()
-  if (selectedFile.value) {
-    formData.append('files', selectedFile.value)
-  }
-  avatarDialogue.value = false
-
-  try {
-    await nuxtApp.$axios.post('/upload?id=' + userStore.loggedInUser?.id, formData)
-    nuxtApp.$alerter.showMessage({ content: 'File uploaded', value: 'success' })
-  } catch (e: any) {
-    errors.value = e.response?.data?.message?.[0]?.messages?.[0]?.message || 'Upload failed'
-    nuxtApp.$alerter.showMessage({ content: errors.value, value: 'error' })
-  }
-}
 
 const changeRate = async () => {
   errors.value = ''

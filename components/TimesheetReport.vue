@@ -248,10 +248,10 @@ export default {
 
         // Delete each entry
         for (const entry of entriesToDelete) {
-          await this.$nuxt.$axios.delete(`/timesheets/${entry.id}`)
+          await this.$axios.delete(`/timesheets/${entry.id}`)
         }
 
-        this.$nuxt.$alerter.showMessage({
+        this.$alerter.showMessage({
           content: 'Timesheet entries deleted successfully',
           value: 'success'
         })
@@ -260,7 +260,7 @@ export default {
         this.$emit('entries-deleted')
       } catch (error) {
         console.error('Error deleting entries:', error)
-        this.$nuxt.$alerter.showMessage({
+        this.$alerter.showMessage({
           content: 'Failed to delete entries',
           value: 'error'
         })

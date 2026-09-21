@@ -63,10 +63,10 @@ export default {
     }
   },
   methods: {
-    logout() {
-      this.$auth.logout()
-      this.$router.push('/login')
-      this.$alerter.showMessage({ content: 'You have been logged out', value: 'success' })
+    async logout() {
+      await this.$strapi.logout()
+      window.location.reload()
+
     },
     reloadPage() {
       window.location.reload()

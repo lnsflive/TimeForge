@@ -16,6 +16,7 @@ export default defineNuxtConfig({
   ],
 
   app: {
+    baseURL: process.env.NUXT_APP_BASE_URL || '/Projects/TimeForge/',
     head: {
       titleTemplate: '%s - TimeForge',
       title: 'TimeForge',
@@ -58,7 +59,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.API_AUTH_URL || 'https://strapi.jaimegonzalezjr.com'
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || process.env.API_AUTH_URL || 'https://api.jaimegonzalezjr.com'
     }
   },
 
@@ -67,6 +68,7 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    prerender: { routes: ['/login', '/dashboard', '/settings'] },
     preset: 'node-server',
     compatibilityDate: '2025-07-11'
   },

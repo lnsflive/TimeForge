@@ -18,12 +18,14 @@ interface User {
 }
 
 interface UserState {
+  sessionChecked: boolean
   loggedIn: boolean
   user: User | null
 }
 
 export const useUserStore = defineStore('user', {
   state: (): UserState => ({
+    sessionChecked: false,
     loggedIn: false,
     user: null
   }),
@@ -70,6 +72,7 @@ export const useUserStore = defineStore('user', {
   actions: {
     setUser(user: User | null) {
       console.log('User store - Setting user:', user)
+      this.sessionChecked = true
       this.user = user
       this.loggedIn = !!user
     },

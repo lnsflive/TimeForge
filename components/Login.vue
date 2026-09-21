@@ -3,6 +3,10 @@
     <v-card style="background: #1d204b; width: 300px; padding: 20px">
       <v-form ref="form" v-model="valid" @submit.prevent="checkSend">
         <h3 class="text-center text-h3 my-8">TimeForge</h3>
+        <v-btn block prepend-icon="mdi-google" class="mb-4" :href="$strapi.googleLoginUrl()">
+          Continue with Google
+        </v-btn>
+        <v-alert v-if="error" type="error" class="mb-4">{{ error }}</v-alert>
         <v-divider />
         <v-card-text style="font-size: 35px" class="text-center pb-8 accent--text">
           {{ status }}
@@ -12,7 +16,7 @@
           prepend-inner-icon="mdi-account"
           autocomplete="username"
           autofocus
-          label="Username"
+          :label="registered ? 'Username' : 'Username or email'"
           type="text"
           name="username"
           placeholder="Enter your username"
@@ -63,7 +67,6 @@
           color="success"
           style="height: 50px; margin-top: 10px"
           type="submit"
-          @click="checkSend"
         >
           {{ btnStatus }}
         </v-btn>
@@ -85,6 +88,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { authErrorMessage } from '~/utils/auth-client.js'
 import { useUserStore } from '~/stores/user'
 import { navigateTo } from '#app'
 
@@ -94,12 +98,12 @@ interface StrapiAuthResponse {
     username: string
     email: string
   }
-  jwt: string
 }
 
 interface StrapiPlugin {
   login(data: { identifier: string; password: string }): Promise<StrapiAuthResponse>
-  register(data: { username: string; email: string; password: string }): Promise<StrapiAuthResponse>
+  register(data: { username: string; email: string; password: string }): Promise<void>
+  googleLoginUrl(): string
 }
 
 interface AlertMessage {
@@ -186,7 +190,7 @@ const login = async () => {
     await navigateTo('/')
   } catch (e: any) {
     console.error('Login error:', e)
-    error.value = e.response?.data?.error?.message || e.message || 'Login failed'
+    error.value = authErrorMessage(e, 'Sign-in failed. Check your details or try again.')
     $alerter.showMessage({ content: error.value, value: 'error' })
   }
 }
@@ -195,22 +199,18 @@ const register = async () => {
   error.value = ''
   try {
     console.log('Attempting registration with:', { username: username.value, email: email.value })
-    const response = await $strapi.register({
+    await $strapi.register({
       username: username.value,
       email: email.value,
       password: password.value
     })
 
-    console.log('Registration successful:', {
-      userId: response.user.id,
-      username: response.user.username
-    })
-    $alerter.showMessage({ content: 'Registration successful! Please log in.', value: 'success' })
+    $alerter.showMessage({ content: 'Registration submitted. If email confirmation is required, confirm your email before signing in.', value: 'success' })
     clear()
     toggleRegister()
   } catch (e: any) {
     console.error('Registration error:', e)
-    error.value = e.response?.data?.error?.message || e.message || 'Registration failed'
+    error.value = authErrorMessage(e, 'Registration failed. Please try again.')
     $alerter.showMessage({ content: error.value, value: 'error' })
   }
 }
@@ -231,7 +231,9 @@ const checkSend = async (event: Event) => {
   }
 }
 
+const route = useRoute()
 onMounted(() => {
+  if (route.query.auth === 'error') error.value = 'Google sign-in could not be completed. Please try again.'
   // Check if already logged in
   if (userStore.isLoggedIn) {
     navigateTo('/')

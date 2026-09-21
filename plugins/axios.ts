@@ -1,49 +1,19 @@
-import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import axios from 'axios'
-import { defineNuxtPlugin, useRuntimeConfig } from 'nuxt/app'
-import { navigateTo } from 'nuxt/app'
+import { defineNuxtPlugin, useRuntimeConfig, navigateTo } from 'nuxt/app'
+import { useUserStore } from '~/stores/user'
 
-export default defineNuxtPlugin((nuxtApp) => {
-  const config = useRuntimeConfig()
-
-  const axiosInstance = axios.create({
-    baseURL: config.public.apiBaseUrl as string,
-    headers: {
-      common: {
-        Accept: 'application/json'
-      }
-    }
+export default defineNuxtPlugin(() => {
+  const client = axios.create({
+    baseURL: useRuntimeConfig().public.apiBaseUrl as string,
+    withCredentials: true,
+    headers: { Accept: 'application/json' }
   })
-
-  // Request interceptor
-  axiosInstance.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
-      const token = localStorage.getItem('strapi_jwt')
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-      }
-      return config
-    },
-    (error) => {
-      return Promise.reject(error)
+  client.interceptors.response.use(response => response, error => {
+    if (error.response?.status === 401) {
+      useUserStore().setUser(null)
+      navigateTo('/login')
     }
-  )
-
-  // Response interceptor
-  axiosInstance.interceptors.response.use(
-    (response: AxiosResponse) => response,
-    (error) => {
-      if (error.response?.status === 401) {
-        localStorage.removeItem('strapi_jwt')
-        navigateTo('/login')
-      }
-      return Promise.reject(error)
-    }
-  )
-
-  return {
-    provide: {
-      axios: axiosInstance
-    }
-  }
+    return Promise.reject(error)
+  })
+  return { provide: { axios: client } }
 })

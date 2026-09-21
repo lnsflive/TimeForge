@@ -67,6 +67,7 @@ import { useRouter } from 'vue-router'
 import { useNuxtApp } from 'nuxt/app'
 
 interface NuxtApp {
+  $strapi: { logout(): Promise<void> }
   $alerter?: {
     showMessage(message: { content: string; value: string }): void
   }
@@ -104,6 +105,12 @@ const reloadPage = () => {
 }
 
 const logout = async () => {
+  try {
+    await nuxtApp.$strapi.logout()
+  } catch {
+    nuxtApp.$alerter?.showMessage?.({ content: 'Sign out failed. Please retry.', value: 'error' })
+    return
+  }
   await userStore.logout()
   router.push('/login')
   nuxtApp.$alerter?.showMessage?.({ content: 'You have been logged out', value: 'success' })

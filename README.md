@@ -2,7 +2,7 @@
 
 A professional time tracking application built with Nuxt.js that helps you manage work hours, mileage, and calculate expected payouts.
 
-[View Live Example](https://jaimegonzalezjr.com/Projects/TimeForge) — 🧪 **Test Login:** `test` / `password11`
+[View Live Example](https://jaimegonzalezjr.com/Projects/TimeForge)
 
 ## Features
 
@@ -22,7 +22,7 @@ A professional time tracking application built with Nuxt.js that helps you manag
 
 - Frontend: Nuxt.js with Vuetify
 - Backend: Strapi Headless CMS
-- Authentication: @nuxtjs/auth
+- Authentication: Google and existing local accounts through the portfolio API cookie session
 - Styling: Vuetify Material Design Framework
 
 ## Prerequisites
@@ -56,11 +56,11 @@ Create a `.env` file in the root directory with the following content:
 
 ```
 # Development
-API_AUTH_URL=http://localhost:1337
+API_AUTH_URL=https://api.jaimegonzalezjr.com
 NODE_ENV=development
 
 # Production (update when deploying)
-# API_AUTH_URL=https://your-strapi-instance.com
+# API_AUTH_URL=https://api.jaimegonzalezjr.com
 ```
 
 ### 3. Strapi Backend Setup
@@ -156,3 +156,25 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with Nuxt.js
 - Styled with Vuetify
 - Powered by Strapi CMS
+
+## Shared sign-in deployment
+
+This frontend requires the portfolio auth bridge at `https://api.jaimegonzalezjr.com`. It restores identity using `GET /portfolio/session`, starts Google login using `/portfolio/auth/start?app=timeforge`, and signs existing local accounts in using `POST /portfolio/auth/local`. Logout calls `POST /portfolio/auth/logout`; the shared API session is ended for participating apps. Browser requests include credentials; bearer JWTs are no longer saved in local storage.
+
+The API must allow credentialed CORS from the deployed frontend origin, validate write origins, register the fixed TimeForge Google return destination, and enforce ownership on all timesheet and profile routes. Client route guards are not an authorization boundary. This change does not migrate the existing shared-user `payRate` field or establish that historical timesheet ownership is secure.
+
+The default frontend base path is `/Projects/TimeForge/`. Override `NUXT_APP_BASE_URL` for a different deployment and register its return URL server-side. `API_AUTH_URL` is public configuration; do not include provider secrets in the frontend. Google client configuration belongs on the API. Existing local registration remains available and may require email confirmation according to backend policy; this frontend does not bypass confirmation or merge existing accounts.
+
+Run `npm test` for cookie transport regressions and `npm run build` to verify the production bundle.
+
+### Synology Web Station
+
+Work from `/volume1/git-server/environment/NodeJS/TimeForge`. Set `NUXT_PUBLIC_API_BASE_URL` (or legacy `API_AUTH_URL`) and `NUXT_APP_BASE_URL` in `.env` before building. Static assets embed these public settings.
+
+Run `npm run generate`, then `npm run deploy:preview` to review source, destination and backup path without writing the web root. `npm run deploy` regenerates and copies to `DEPLOY_TARGET` (default `/volume1/web/Projects/TimeForge`) after backing up the existing directory outside the web root. It never deletes unrelated destination files. Coordinate deployment with the portfolio API bridge; the old API does not satisfy the new session contract. Configure the web server to serve `200.html` for SPA deep links such as `/Projects/TimeForge/login`.
+
+Profile photo uploads are temporarily disabled pending a server-authorized upload route. Existing photos remain visible when supplied in the session response.
+
+In-progress clock drafts are now stored under the authenticated account ID. Legacy unscoped drafts are retained in browser storage but are not automatically assigned to whichever account signs in. Finish any active legacy shift before switching the deployed frontend.
+
+The Nuxt commands preload a Synology-only workaround for the installed Node runtime crashing when iterating `Intl.Segmenter` results. It disables that optional formatting API for build tools, which fall back to character splitting; it does not alter browser runtime code.
