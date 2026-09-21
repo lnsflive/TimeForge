@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import { completeGoogleLogin } from '~/utils/auth-client.js'
+import { completeGoogleLogin, startGoogleLogin } from '~/utils/auth-client.js'
 
 const error = ref('')
 const client = useNuxtApp().$strapi
@@ -15,7 +15,12 @@ const search = window.location.search
 window.history.replaceState(null, '', window.location.pathname)
 onMounted(async () => {
   try {
-    const destination = await completeGoogleLogin(search, window.sessionStorage, client)
+    const query = new URLSearchParams(search)
+    const app = query.get('app')
+    const isReturn = query.has('access_token') || query.has('state') || query.has('error')
+    const destination = app && !isReturn
+      ? await startGoogleLogin(app, window.sessionStorage, client)
+      : await completeGoogleLogin(search, window.sessionStorage, client)
     window.location.replace(destination)
   } catch {
     error.value = 'Google sign-in could not be completed. Please start sign-in again.'

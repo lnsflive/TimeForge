@@ -1,13 +1,20 @@
 import axios from 'axios'
 
 export const GOOGLE_CALLBACK = 'https://jaimegonzalezjr.com/Projects/TimeForge/auth/google'
-const RETURNS = new Set(['/Projects/TimeForge/', '/games/blackjack/', '/games/memory/#/'])
+function secureUrl(value) {
+  const url = new URL(value)
+  if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Invalid application URL')
+  return url
+}
 
-export function googleLoginUrl(session, cryptoSource = globalThis.crypto) {
+export async function startGoogleLogin(app, session, client, cryptoSource = globalThis.crypto) {
+  const config = await client.getOAuthApplication(app)
+  const callback = secureUrl(config.callbackUrl)
+  secureUrl(config.returnUrl)
   const state = Array.from(cryptoSource.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2, '0')).join('')
   session.setItem('strapi_google_state', state)
-  session.setItem('strapi_google_return', '/Projects/TimeForge/')
-  const callback = new URL(GOOGLE_CALLBACK)
+  session.setItem('strapi_google_app', config.key)
+  session.removeItem('strapi_google_return')
   callback.searchParams.set('state', state)
   const start = new URL('https://strapi.jaimegonzalezjr.com/connect/google')
   start.searchParams.set('callback', callback.href)
@@ -17,21 +24,23 @@ export function googleLoginUrl(session, cryptoSource = globalThis.crypto) {
 export async function completeGoogleLogin(search, session, client) {
   const query = new URLSearchParams(search)
   const expected = session.getItem('strapi_google_state')
-  const destination = session.getItem('strapi_google_return')
+  const app = session.getItem('strapi_google_app')
   session.removeItem('strapi_google_state')
+  session.removeItem('strapi_google_app')
   session.removeItem('strapi_google_return')
-  if (!expected || query.get('state') !== expected || !query.get('access_token')) {
+  if (!expected || !app || query.get('state') !== expected || !query.get('access_token')) {
     throw new Error('Google sign-in expired or did not match this browser. Please try again.')
   }
   await client.exchangeGoogleToken(query.get('access_token'))
-  return RETURNS.has(destination) ? destination : '/Projects/TimeForge/'
+  const config = await client.getOAuthApplication(app)
+  return secureUrl(config.returnUrl).href
 }
 
 export function createAuthClient(baseURL, storage, adapter) {
   const client = axios.create({ baseURL, withCredentials: false, adapter })
   client.interceptors.request.use(config => {
     const token = storage?.getItem('strapi_jwt')
-    if (token && !config.url.startsWith('/auth/')) config.headers.Authorization = 'Bearer ' + token
+    if (token && !config.url.startsWith('/auth/') && config.url !== '/oauthapplications') config.headers.Authorization = 'Bearer ' + token
     return config
   })
   function acceptAuth(data) {
@@ -40,6 +49,14 @@ export function createAuthClient(baseURL, storage, adapter) {
     return { user: data.user }
   }
   return {
+    async getOAuthApplication(key) {
+      if (typeof key !== 'string' || !/^[a-z0-9][a-z0-9_-]*$/.test(key)) throw new Error('Invalid application key')
+      const configs = (await client.get('/oauthapplications', { params: { key } })).data
+      if (!Array.isArray(configs) || configs.length !== 1 || configs[0].key !== key) {
+        throw new Error('Application is unavailable')
+      }
+      return configs[0]
+    },
     async login(data) {
       return acceptAuth((await client.post('/auth/local', data)).data)
     },
@@ -80,7 +97,7 @@ export function createAuthClient(baseURL, storage, adapter) {
       return { payRate: response.data.payRate ?? null }
     },
     googleLoginUrl() {
-      return googleLoginUrl(window.sessionStorage)
+      return GOOGLE_CALLBACK + '?app=timeforge'
     }
   }
 }

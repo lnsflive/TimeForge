@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createAuthClient, googleLoginUrl, completeGoogleLogin, GOOGLE_CALLBACK } from '../utils/auth-client.js'
+import { createAuthClient, startGoogleLogin, completeGoogleLogin, GOOGLE_CALLBACK } from '../utils/auth-client.js'
 
 function storage(initial = {}) {
   const values = new Map(Object.entries(initial))
@@ -59,31 +59,53 @@ test('profile create and update use server-owned native collection', async () =>
   assert.equal(calls[4].method, 'put')
   assert.deepEqual(JSON.parse(calls[4].data), {payRate:null})
 })
-test('Google start stores per-tab nonce and native callback', () => {
-  const session = storage()
-  const start = new URL(googleLoginUrl(session, {getRandomValues: array => array.fill(1)}))
-  assert.equal(start.origin + start.pathname, 'https://strapi.jaimegonzalezjr.com/connect/google')
-  const callback = new URL(start.searchParams.get('callback'))
-  assert.equal(callback.origin + callback.pathname, GOOGLE_CALLBACK)
-  assert.equal(callback.searchParams.get('state'), session.getItem('strapi_google_state'))
-  assert.equal(session.getItem('strapi_google_state').length, 64)
-})
-test('callback validates nonce, exchanges token once, and constrains onward destination', async () => {
-  const session = storage({strapi_google_state:'nonce',strapi_google_return:'/games/memory/#/'})
-  const {client,calls,store} = setup([{jwt:'google',user:{id:4}}])
-  assert.equal(await completeGoogleLogin('?state=nonce&access_token=secret',session,client), '/games/memory/#/')
-  assert.equal(calls[0].url, '/auth/google/callback')
-  assert.equal(calls[0].params.access_token,'secret')
-  assert.equal(store.getItem('strapi_jwt'),'google')
-  await assert.rejects(completeGoogleLogin('?state=nonce&access_token=secret',session,client))
-  assert.equal(calls.length,1)
-  const attacker = storage({strapi_google_state:'nonce',strapi_google_return:'https://evil.example'})
-  assert.equal(await completeGoogleLogin('?state=nonce&access_token=secret',attacker,{exchangeGoogleToken: async()=>{}}), '/Projects/TimeForge/')
-})
+
+for (const [key, returnUrl] of [
+  ['blackjack', 'https://jaimegonzalezjr.com/games/blackjack/'],
+  ['memory', 'https://jaimegonzalezjr.com/games/memory/#/'],
+  ['timeforge', 'https://jaimegonzalezjr.com/Projects/TimeForge/'],
+  ['new-app', 'https://new-app.example/dashboard']
+]) {
+  test('complete mocked Google login returns to registered ' + key, async () => {
+    const config = { key, name: key, callbackUrl: GOOGLE_CALLBACK, returnUrl }
+    const session = storage()
+    const {client,calls,store} = setup([[config], {jwt:'google',user:{id:4}}, [config]])
+    const start = new URL(await startGoogleLogin(key,session,client,{getRandomValues:array=>array.fill(1)}))
+    assert.equal(start.pathname,'/connect/google')
+    const callback = new URL(start.searchParams.get('callback'))
+    assert.equal(callback.origin+callback.pathname,GOOGLE_CALLBACK)
+    const nonce = session.getItem('strapi_google_state')
+    assert.equal(callback.searchParams.get('state'),nonce)
+    assert.equal(nonce.length,64)
+    const destination = await completeGoogleLogin('?state='+nonce+'&access_token=secret',session,client)
+    assert.equal(destination,returnUrl)
+    assert.equal(store.getItem('strapi_jwt'),'google')
+    assert.equal(calls[0].url,'/oauthapplications')
+    assert.deepEqual(calls[0].params,{key})
+    assert.equal(calls[0].headers.Authorization,undefined)
+    assert.equal(calls[1].url,'/auth/google/callback')
+    assert.equal(calls[1].params.access_token,'secret')
+    assert.equal(calls[2].params.key,key)
+    await assert.rejects(completeGoogleLogin('?state='+nonce+'&access_token=secret',session,client))
+    assert.equal(calls.length,3)
+  })
+}
 test('mismatched Google callback makes no token exchange', async () => {
   let called = false
-  const session=storage({strapi_google_state:'expected'})
+  const session=storage({strapi_google_state:'expected',strapi_google_app:'timeforge'})
   await assert.rejects(completeGoogleLogin('?state=wrong&access_token=secret',session,{exchangeGoogleToken:async()=>{called=true}}))
   assert.equal(called,false)
   assert.equal(session.getItem('strapi_google_state'),null)
 })
+test('disabled or absent application cannot start sign-in', async () => {
+  const {client,calls}=setup([[]])
+  await assert.rejects(startGoogleLogin('disabled',storage(),client),/unavailable/)
+  assert.equal(calls.length,1)
+})
+for (const returnUrl of ['http://example.com/', 'javascript:alert(1)', 'https://user:password@example.com/']) {
+  test('reject unsafe configured return URL '+returnUrl, async () => {
+    const client = {getOAuthApplication:async()=>({key:'app',callbackUrl:GOOGLE_CALLBACK,returnUrl}),exchangeGoogleToken:async()=>{}}
+    await assert.rejects(startGoogleLogin('app',storage(),client))
+    await assert.rejects(completeGoogleLogin('?state=n&access_token=x',storage({strapi_google_state:'n',strapi_google_app:'app'}),client))
+  })
+}
