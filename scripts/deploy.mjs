@@ -1,4 +1,4 @@
-import { cp, mkdir, lstat, realpath, access, readdir } from 'node:fs/promises'
+import { cp, mkdir, lstat, realpath, access, readdir, rm } from 'node:fs/promises'
 import { resolve, dirname, sep } from 'node:path'
 import 'dotenv/config'
 
@@ -35,5 +35,6 @@ if (process.argv.includes('--apply')) {
   } catch (error) { if (error.code !== 'ENOENT') throw error }
   await mkdir(target, { recursive: true })
   await cp(source, target, { recursive: true, force: true })
+  for (const retired of ['sw-custom.js', 'sw.js', 'registerSW.js']) await rm(resolve(target, retired), {force:true})
   console.log('Deployment copied. Existing files not in the build were retained.')
 }

@@ -334,7 +334,7 @@ watch(isOnBreak, (newVal) => {
 
 // Lifecycle hooks
 onMounted(() => {
-  syncTimerStateWithServiceWorker()
+  syncTimerState()
   const tmpDate = new Date()
   getDateTime()
   today.value = tmpDate.toISOString().slice(0, 10)
@@ -535,7 +535,7 @@ function clockIn() {
     })
     return
   }
-  syncTimerStateWithServiceWorker()
+  syncTimerState()
 
   clockedIn.value = true
   startTime.value = getTimeStamp()
@@ -656,7 +656,7 @@ function toggleLunch(): void {
   }
 }
 
-function syncTimerStateWithServiceWorker() {
+function syncTimerState() {
   const { $timerService } = nuxtApp
   if ($timerService) {
     const timerState = {

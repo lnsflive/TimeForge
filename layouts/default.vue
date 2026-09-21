@@ -7,18 +7,21 @@
         </v-app-bar-nav-icon>
       </template>
 
-      <v-spacer />
-
-      <v-app-bar-title>
-        <h3 class="text-center text-h3">TimeForge</h3>
-      </v-app-bar-title>
-
-      <v-spacer />
-
+      <v-app-bar-title class="app-title">TimeForge</v-app-bar-title>
       <template #append>
-        <v-app-bar-nav-icon>
-          <v-icon x-large @click="reloadPage">mdi-cached</v-icon>
-        </v-app-bar-nav-icon>
+        <v-menu v-if="userStore.isLoggedIn">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" variant="text" class="account-toggle" :aria-label="'Account: ' + userStore.displayName">
+              <v-icon icon="mdi-account-circle" />
+              <span class="account-name">{{ userStore.displayName }}</span>
+            </v-btn>
+          </template>
+          <v-list aria-label="Your account">
+            <v-list-item :title="userStore.displayName" :subtitle="userStore.user?.email" />
+            <v-list-item title="Profile" prepend-icon="mdi-account-edit" to="/profile" />
+            <v-list-item title="Sign out" prepend-icon="mdi-logout" @click="logout" />
+          </v-list>
+        </v-menu>
       </template>
     </v-app-bar>
 
@@ -90,8 +93,8 @@ const items = ref([
     to: '/dashboard'
   },
   {
-    title: 'Settings',
-    to: '/settings'
+    title: 'Profile',
+    to: '/profile'
   }
 ])
 
@@ -118,6 +121,11 @@ const logout = async () => {
 </script>
 
 <style>
+.app-title { min-width: 0; font-size: clamp(1.1rem, 4vw, 1.5rem); line-height: 1.3; font-weight: 600; }
+.account-toggle { flex-shrink: 0; }
+.account-name { max-width: 10rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: .4rem; }
+@media (max-width: 600px) { .account-name { display: none; } }
+
 .v-application {
   font-family: 'Rubik', sans-serif !important;
   background-color: rgb(13, 19, 35) !important;

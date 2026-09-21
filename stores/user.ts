@@ -4,6 +4,7 @@ import { useRuntimeConfig } from 'nuxt/app'
 interface User {
   id: number
   username: string
+  fullName?: string
   email: string
   image?: {
     url: string
@@ -44,12 +45,9 @@ export const useUserStore = defineStore('user', {
       return this.user?.username
     },
 
-    avatarImage(): string {
-      console.log('User store - Getting avatar image:', {
-        user: this.user,
-        imageUrl: this.user?.image?.url
-      })
+    displayName(): string { return this.user?.fullName || this.user?.username || 'Account' },
 
+    avatarImage(): string {
       const config = useRuntimeConfig()
       const baseUrl = config.public.apiBaseUrl
 
@@ -72,7 +70,6 @@ export const useUserStore = defineStore('user', {
 
   actions: {
     setUser(user: User | null) {
-      console.log('User store - Setting user:', user)
       if (this.user?.id !== user?.id || !user) this.timeforgeProfile = null
       this.sessionChecked = true
       this.user = user

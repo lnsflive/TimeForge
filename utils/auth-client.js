@@ -7,6 +7,7 @@ export function createAuthClient(baseURL, accounts, adapter) {
   })
   return {
     async login(data) {return {user:await (await accounts()).login(data.identifier,data.password)}},
+    async updateProfile(data) {return (await accounts()).updateProfile(data)},
     async register(data) {return (await accounts()).register(data)},
     async logout() {return (await accounts()).logout()},
     async restoreUser() {

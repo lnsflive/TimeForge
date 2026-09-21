@@ -25,10 +25,8 @@
     "@nuxt/devtools": "latest",
     "@nuxtjs/vuetify": "^1.12.3",
     "@types/axios": "^0.14.0",
-    "@vite-pwa/nuxt": "^1.0.4",
     "nuxt": "^3.10.1",
     "sass": "^1.70.0",
-    "vite-plugin-pwa": "^1.0.1",
     "vite-plugin-vuetify": "^2.1.1",
     "vuetify": "^3.9.0",
     "vuetify-nuxt-module": "^0.18.7"
