@@ -24,6 +24,12 @@ export function createAuthClient(baseURL, storage, adapter) {
     async getUser() {
       return (await client.get('/users/me')).data
     },
+    async getTimeForgeProfile() {
+      return (await client.get('/portfolio/timeforge/profile')).data
+    },
+    async updateTimeForgeProfile(payRate) {
+      return (await client.put('/portfolio/timeforge/profile', { payRate })).data
+    },
     googleLoginUrl() {
       return new URL('/portfolio/auth/start?app=timeforge', baseURL).href
     }

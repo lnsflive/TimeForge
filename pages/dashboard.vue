@@ -73,7 +73,7 @@ const menuOpen = ref(false)
 const loading = ref(false)
 const error = ref('')
 
-const payRate = computed(() => userStore.loggedInUser?.payRate || 0)
+const payRate = computed(() => userStore.timeforgeProfile?.payRate ?? 0)
 
 const dateRangeText = computed(() => {
   if (!dateRange.value || dateRange.value.length !== 2) {

@@ -5,7 +5,6 @@ interface User {
   id: number
   username: string
   email: string
-  payRate?: number
   image?: {
     url: string
     formats?: {
@@ -18,6 +17,7 @@ interface User {
 }
 
 interface UserState {
+  timeforgeProfile: { payRate: number | null } | null
   sessionChecked: boolean
   loggedIn: boolean
   user: User | null
@@ -25,6 +25,7 @@ interface UserState {
 
 export const useUserStore = defineStore('user', {
   state: (): UserState => ({
+    timeforgeProfile: null,
     sessionChecked: false,
     loggedIn: false,
     user: null
@@ -72,12 +73,18 @@ export const useUserStore = defineStore('user', {
   actions: {
     setUser(user: User | null) {
       console.log('User store - Setting user:', user)
+      if (this.user?.id !== user?.id || !user) this.timeforgeProfile = null
       this.sessionChecked = true
       this.user = user
       this.loggedIn = !!user
     },
 
+    setTimeForgeProfile(profile: { payRate: number | null }) {
+      this.timeforgeProfile = { payRate: profile.payRate }
+    },
+
     logout() {
+      this.timeforgeProfile = null
       this.user = null
       this.loggedIn = false
     }

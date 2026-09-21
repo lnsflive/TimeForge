@@ -12,6 +12,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
       store.setUser(null)
     }
   }
+  if (store.isLoggedIn && !store.timeforgeProfile && to.path !== '/login') {
+    try {
+      store.setTimeForgeProfile(await useNuxtApp().$strapi.getTimeForgeProfile())
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        store.setUser(null)
+        return navigateTo('/login')
+      }
+      throw createError({ statusCode: 503, statusMessage: 'Unable to load your TimeForge profile. Please retry.' })
+    }
+  }
   if (to.query.auth === 'error' && to.path !== '/login') {
     return navigateTo('/login?auth=error')
   }

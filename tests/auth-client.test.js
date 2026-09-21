@@ -28,8 +28,8 @@ test('local login ignores stale JWT and relies on credentialed cookie transport'
 })
 
 test('restores identity from the API cookie and signs out server-side', async () => {
-  const { client, calls } = setup([{ user: { id: 12 } }, { id: 12, payRate: 20 }, {}])
-  assert.deepEqual(await client.restoreUser(), { id: 12, payRate: 20 })
+  const { client, calls } = setup([{ user: { id: 12 } }, { id: 12 }, {}])
+  assert.deepEqual(await client.restoreUser(), { id: 12 })
   await client.logout()
   assert.deepEqual(calls.map(c => [c.url, c.method, c.withCredentials]), [
     ['/portfolio/session', 'get', true], ['/users/me', 'get', true], ['/portfolio/auth/logout', 'post', true]
@@ -54,4 +54,19 @@ test('registration never persists or returns browser tokens', async () => {
 test('local provider errors explain confirmation or invalid credentials', () => {
   assert.equal(authErrorMessage({response: {data: {message: [{messages: [{message: 'Email is not confirmed'}]}]}}}, 'fallback'), 'Email is not confirmed')
   assert.equal(authErrorMessage({response: {data: {message: {unexpected: true}}}}, 'Try again'), 'Try again')
+})
+
+
+test('TimeForge profile is separate from identity and uses only the signed-in account', async () => {
+  const { client, calls } = setup([{ payRate: null }, { payRate: 25.5 }, { payRate: null }])
+  assert.deepEqual(await client.getTimeForgeProfile(), { payRate: null })
+  assert.deepEqual(await client.updateTimeForgeProfile(25.5), { payRate: 25.5 })
+  assert.deepEqual(await client.updateTimeForgeProfile(null), { payRate: null })
+  assert.deepEqual(calls.map(c => [c.url, c.method, c.withCredentials]), [
+    ['/portfolio/timeforge/profile', 'get', true],
+    ['/portfolio/timeforge/profile', 'put', true],
+    ['/portfolio/timeforge/profile', 'put', true]
+  ])
+  assert.deepEqual(JSON.parse(calls[1].data), { payRate: 25.5 })
+  assert.deepEqual(JSON.parse(calls[2].data), { payRate: null })
 })
