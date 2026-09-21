@@ -1,7 +1,8 @@
 import { useUserStore } from '~/stores/user'
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (to.path === '/auth/google') return
+  const path = to.path.replace(/\/+$/, '') || '/'
+  if (path === '/auth/google') return
   const store = useUserStore()
   if (!store.sessionChecked) {
     try {
@@ -13,7 +14,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
       store.setUser(null)
     }
   }
-  if (store.isLoggedIn && !store.timeforgeProfile && to.path !== '/login') {
+  if (store.isLoggedIn && !store.timeforgeProfile && path !== '/login') {
     try {
       store.setTimeForgeProfile(await useNuxtApp().$strapi.getTimeForgeProfile())
     } catch (error: any) {
@@ -24,8 +25,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
       throw createError({ statusCode: 503, statusMessage: 'Unable to load your TimeForge profile. Please retry.' })
     }
   }
-  if (to.query.auth === 'error' && to.path !== '/login') {
+  if (to.query.auth === 'error' && path !== '/login') {
     return navigateTo('/login?auth=error')
   }
-  if (!store.isLoggedIn && to.path !== '/login') return navigateTo('/login')
+  if (!store.isLoggedIn && path !== '/login') return navigateTo('/login')
 })
