@@ -2,6 +2,8 @@ import { defineNuxtConfig } from 'nuxt/config'
 import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
+const appBase = (process.env.NUXT_APP_BASE_URL || '/Projects/TimeForge/').replace(/\/?$/, '/')
+
 export default defineNuxtConfig({
   devtools: { enabled: true },
   ssr: false,
@@ -16,7 +18,7 @@ export default defineNuxtConfig({
   ],
 
   app: {
-    baseURL: process.env.NUXT_APP_BASE_URL || '/Projects/TimeForge/',
+    baseURL: appBase,
     head: {
       titleTemplate: '%s - TimeForge',
       title: 'TimeForge',
@@ -29,7 +31,7 @@ export default defineNuxtConfig({
         { name: 'format-detection', content: 'telephone=no' }
       ],
       link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.png' },
+        { rel: 'icon', type: 'image/png', href: appBase + 'favicon.png?v=2' },
         {
           rel: 'stylesheet',
           href: 'https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Material+Icons'
@@ -68,7 +70,7 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    prerender: { routes: ['/login', '/dashboard', '/settings', '/profile', '/auth/google'] },
+    prerender: { routes: ['/'], crawlLinks: false, ignore: ['/200.html', '/404.html'] },
     compatibilityDate: '2025-07-11'
   },
 

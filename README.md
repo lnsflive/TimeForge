@@ -186,3 +186,12 @@ The Nuxt commands preload a Synology-only workaround for the installed Node runt
 TimeForge mounts the universal account form from `https://api.jaimegonzalezjr.com/auth/client.v1.js` inside its own layout. That client lives in the Strapi repository. Google returns to TimeForge's own `/auth/google` route; games use their own callback pages. Configure methods, password registration, callback/return URL, and shared/separate session in Strapi Content Manager → OAuth Applications. TimeForge currently supports Google and password/register with shared login. The local Strapi adapter keeps profile/timesheet requests in this app and delegates account operations to the shared client.
 
 TimeForge is a static client-rendered SPA (`ssr:false`) deployed from `.output/public`. No service worker is registered. Startup retires only TimeForge-scoped workers and its explicitly known legacy `/sw-custom.js` registration; other apps' workers and caches are untouched. Break reminders run only while the page is open. The Profile page (`/profile`, with `/settings` compatibility redirect) shows shared identity, edits the shared display name and stores the hourly rate separately in the TimeForge profile.
+
+
+### Synology SPA hosting
+
+The generated site has one HTML entry: `.output/public/index.html`. Vue Router handles application routes; `ssr: false` and disabled link crawling prevent per-page HTML exports. Static images belong in `public/`; the favicon URL uses the configured app base.
+
+`ops/nginx/timeforge.conf` scopes Web Station's SPA fallback and cache revalidation to `/Projects/TimeForge/`. Install with `ops/install-webstation-cache.py` as a Synology administrator; it validates nginx before reloading and restores the previous include on failure. Reapply after a Web Station update if the custom include is removed. The deploy script checks this configuration before retiring old route HTML files, and backs up the existing application first.
+
+The Google callback navigates to a fresh root document using a temporary `_auth_return` query parameter. The authenticated route guard removes it using client navigation. This prevents browsers with legacy cached HTML from loading the retired auth implementation after a successful Google exchange. No credential is included in that parameter.

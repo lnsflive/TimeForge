@@ -1,4 +1,4 @@
-import { cp, mkdir, lstat, realpath, access, readdir, rm } from 'node:fs/promises'
+import { cp, mkdir, lstat, realpath, access, readdir, rm, rmdir, readFile } from 'node:fs/promises'
 import { resolve, dirname, sep } from 'node:path'
 import 'dotenv/config'
 
@@ -28,6 +28,9 @@ async function rejectSymlinks(path) {
   }
 }
 if (process.argv.includes('--apply')) {
+  const installed = await readFile('/usr/local/etc/nginx/conf.d/.webstation.error_page.default.resource.conf.timeforge', 'utf8')
+  const expected = await readFile('ops/nginx/timeforge.conf', 'utf8')
+  if (installed !== expected) throw new Error('Install the tracked Web Station SPA configuration before deploying.')
   try {
     await rejectSymlinks(target)
     await mkdir(backupRoot, { recursive: true })
@@ -36,5 +39,12 @@ if (process.argv.includes('--apply')) {
   await mkdir(target, { recursive: true })
   await cp(source, target, { recursive: true, force: true })
   for (const retired of ['sw-custom.js', 'sw.js', 'registerSW.js']) await rm(resolve(target, retired), {force:true})
-  console.log('Deployment copied. Existing files not in the build were retained.')
+  // Retire only generated route entrypoints; Web Station now falls back to index.html.
+  for (const route of ['login', 'dashboard', 'settings', 'profile', 'auth/google']) {
+    await rm(resolve(target, route, 'index.html'), {force:true})
+    await rm(resolve(target, route + '.html'), {force:true})
+    try { await rmdir(resolve(target, route)) } catch (error) { if (!['ENOENT', 'ENOTEMPTY'].includes(error.code)) throw error }
+  }
+  for (const entry of ['200.html', '404.html']) await rm(resolve(target, entry), {force:true})
+  console.log('SPA deployed; obsolete generated entrypoints retired. Unrelated files retained.')
 }

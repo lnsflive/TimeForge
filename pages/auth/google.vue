@@ -21,7 +21,10 @@ onMounted(async () => {
     const destination = app && !isReturn
       ? await startGoogleLogin()
       : await completeGoogleLogin(search)
-    window.location.replace(destination)
+    const returnUrl = new URL(destination)
+    // A fresh document avoids old cached HTML that still expects legacy auth.
+    if (!(app && !isReturn)) returnUrl.searchParams.set('_auth_return', String(Date.now()))
+    window.location.replace(returnUrl.href)
   } catch {
     error.value = 'Google sign-in could not be completed. Please start sign-in again.'
   }

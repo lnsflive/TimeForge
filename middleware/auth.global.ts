@@ -14,6 +14,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
       store.setUser(null)
     }
   }
+  if (store.isLoggedIn && to.query._auth_return) {
+    const { _auth_return, ...query } = to.query
+    return navigateTo({ path: to.path, query, hash: to.hash }, { replace: true })
+  }
   if (store.isLoggedIn && path === '/login') return navigateTo('/', { replace: true })
   if (store.isLoggedIn && !store.timeforgeProfile && path !== '/login') {
     try {
