@@ -44,6 +44,7 @@ test('logout clears shared JWT even if legacy cookie cleanup is offline', async 
   await client.logout()
   assert.equal(store.getItem('strapi_jwt'), null)
   assert.equal(calls[0].url, '/auth/logout')
+  assert.equal(calls[0].method, 'post')
   assert.equal(calls[0].withCredentials, true)
 })
 test('profile create and update use server-owned native collection', async () => {

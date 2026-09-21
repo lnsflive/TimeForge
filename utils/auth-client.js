@@ -51,7 +51,7 @@ export function createAuthClient(baseURL, storage, adapter) {
     },
     async logout() {
       storage?.removeItem('strapi_jwt')
-      try { await client.get('/auth/logout', { withCredentials: true }) } catch { /* Native JWT is already cleared. */ }
+      try { await client.post('/auth/logout', {}, { withCredentials: true }) } catch { /* Native JWT is already cleared. */ }
     },
     async restoreUser() {
       if (!storage?.getItem('strapi_jwt')) {
