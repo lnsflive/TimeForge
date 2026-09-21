@@ -1,6 +1,7 @@
 import { useUserStore } from '~/stores/user'
 
 export default defineNuxtRouteMiddleware(async (to) => {
+  if (to.path === '/auth/google') return
   const store = useUserStore()
   if (!store.sessionChecked) {
     try {

@@ -68,7 +68,7 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    prerender: { routes: ['/login', '/dashboard', '/settings'] },
+    prerender: { routes: ['/login', '/dashboard', '/settings', '/auth/google'] },
     preset: 'node-server',
     compatibilityDate: '2025-07-11'
   },

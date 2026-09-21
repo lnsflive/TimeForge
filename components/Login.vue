@@ -3,7 +3,7 @@
     <v-card style="background: #1d204b; width: 300px; padding: 20px">
       <v-form ref="form" v-model="valid" @submit.prevent="checkSend">
         <h3 class="text-center text-h3 my-8">TimeForge</h3>
-        <v-btn block prepend-icon="mdi-google" class="mb-4" :href="$strapi.googleLoginUrl()">
+        <v-btn block prepend-icon="mdi-google" class="mb-4" @click="startGoogle">
           Continue with Google
         </v-btn>
         <v-alert v-if="error" type="error" class="mb-4">{{ error }}</v-alert>
@@ -166,6 +166,8 @@ const toggleRegister = () => {
   }
   clear()
 }
+
+const startGoogle = () => { window.location.assign($strapi.googleLoginUrl()) }
 
 const login = async () => {
   error.value = ''

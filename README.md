@@ -22,7 +22,7 @@ A professional time tracking application built with Nuxt.js that helps you manag
 
 - Frontend: Nuxt.js with Vuetify
 - Backend: Strapi Headless CMS
-- Authentication: Google and existing local accounts through the portfolio API cookie session
+- Authentication: Google and existing local accounts through native Strapi authentication
 - Styling: Vuetify Material Design Framework
 
 ## Prerequisites
@@ -159,19 +159,21 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Shared sign-in deployment
 
-This frontend requires the portfolio auth bridge at `https://api.jaimegonzalezjr.com`. It restores identity using `GET /portfolio/session`, starts Google login using `/portfolio/auth/start?app=timeforge`, and signs existing local accounts in using `POST /portfolio/auth/local`. Logout calls `POST /portfolio/auth/logout`; the shared API session is ended for participating apps. Browser requests include credentials; bearer JWTs are no longer saved in local storage.
+This frontend uses native Strapi endpoints at `https://api.jaimegonzalezjr.com`: `POST /auth/local`, `GET /users/me`, and `GET /auth/google/callback`. The returned JWT uses the shared same-origin local-storage key `strapi_jwt` and is sent in the Authorization bearer header. Logout clears that key and best-effort clears legacy cookies through `/auth/logout`.
 
-The API must allow credentialed CORS from the deployed frontend origin, validate write origins, register the fixed TimeForge Google return destination, and enforce ownership on all timesheet and profile routes. Client route guards are not an authorization boundary. Pay rate is loaded and updated separately through `GET/PUT /portfolio/timeforge/profile`, returning `{payRate: number | null}`. The server derives ownership from the signed-in account; no user ID is submitted. This frontend must deploy after the backend profile migration and endpoint rollout. Historical timesheet ownership still requires server enforcement.
+Google still starts through the existing Strapi-host broker until its Google Console redirect migration. All participating applications return through `/Projects/TimeForge/auth/google`. A per-tab nonce verifies the return, sensitive query parameters are removed from browser history immediately, and only fixed application paths are accepted as onward destinations. Provider tokens are exchanged for the native Strapi JWT.
+
+Pay rate is separate from identity. Native `GET /timeforgeprofiles` returns the authenticated user's profile list; `POST /timeforgeprofiles` creates their profile and `PUT /timeforgeprofiles/:id` updates it. Server controllers must enforce ownership on profiles and timesheets, regardless of browser guards. New users have an unset pay rate.
 
 The default frontend base path is `/Projects/TimeForge/`. Override `NUXT_APP_BASE_URL` for a different deployment and register its return URL server-side. `API_AUTH_URL` is public configuration; do not include provider secrets in the frontend. Google client configuration belongs on the API. Existing local registration remains available and may require email confirmation according to backend policy; this frontend does not bypass confirmation or merge existing accounts.
 
-Run `npm test` for cookie transport regressions and `npm run build` to verify the production bundle.
+Run `npm test` for native authentication regressions and `npm run build` to verify the production bundle.
 
 ### Synology Web Station
 
 Work from `/volume1/git-server/environment/NodeJS/TimeForge`. Set `NUXT_PUBLIC_API_BASE_URL` (or legacy `API_AUTH_URL`) and `NUXT_APP_BASE_URL` in `.env` before building. Static assets embed these public settings.
 
-Run `npm run generate`, then `npm run deploy:preview` to review source, destination and backup path without writing the web root. `npm run deploy` regenerates and copies to `DEPLOY_TARGET` (default `/volume1/web/Projects/TimeForge`) after backing up the existing directory outside the web root. It never deletes unrelated destination files. Coordinate deployment with the portfolio API bridge; the old API does not satisfy the new session contract. Configure the web server to serve `200.html` for SPA deep links such as `/Projects/TimeForge/login`.
+Run `npm run generate`, then `npm run deploy:preview` to review source, destination and backup path without writing the web root. `npm run deploy` regenerates and copies to `DEPLOY_TARGET` (default `/volume1/web/Projects/TimeForge`) after backing up the existing directory outside the web root. It never deletes unrelated destination files. Coordinate deployment with the native Strapi controllers and Google callback allowlist. Configure the web server to serve `200.html` for SPA deep links such as `/Projects/TimeForge/login`.
 
 Profile photo uploads are temporarily disabled pending a server-authorized upload route. Existing photos remain visible when supplied in the session response.
 
