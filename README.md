@@ -180,3 +180,7 @@ Profile photo uploads are temporarily disabled pending a server-authorized uploa
 In-progress clock drafts are now stored under the authenticated account ID. Legacy unscoped drafts are retained in browser storage but are not automatically assigned to whichever account signs in. Finish any active legacy shift before switching the deployed frontend.
 
 The Nuxt commands preload a Synology-only workaround for the installed Node runtime crashing when iterating `Intl.Segmenter` results. It disables that optional formatting API for build tools, which fall back to character splitting; it does not alter browser runtime code.
+
+## Account UI and app-local callbacks
+
+TimeForge mounts the universal account form from `https://api.jaimegonzalezjr.com/auth/client.v1.js` inside its own layout. That client lives in the Strapi repository. Google returns to TimeForge's own `/auth/google` route; games use their own callback pages. Configure methods, password registration, callback/return URL, and shared/separate session in Strapi Content Manager → OAuth Applications. TimeForge currently supports Google and password/register with shared login. The local Strapi adapter keeps profile/timesheet requests in this app and delegates account operations to the shared client.

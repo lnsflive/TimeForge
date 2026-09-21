@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getAccounts } from '~/utils/shared-accounts.js'
 import { defineNuxtPlugin, useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { useUserStore } from '~/stores/user'
 
@@ -8,14 +9,13 @@ export default defineNuxtPlugin(() => {
     withCredentials: false,
     headers: { Accept: 'application/json' }
   })
-  client.interceptors.request.use(config => {
-    const token = window.localStorage.getItem('strapi_jwt')
-    if (token) config.headers.Authorization = 'Bearer ' + token
+  client.interceptors.request.use(async config => {
+    Object.assign(config.headers, await (await getAccounts()).headers())
     return config
   })
-  client.interceptors.response.use(response => response, error => {
+  client.interceptors.response.use(response => response, async error => {
     if (error.response?.status === 401) {
-      window.localStorage.removeItem('strapi_jwt')
+      await (await getAccounts()).logout()
       useUserStore().setUser(null)
       navigateTo('/login')
     }
