@@ -5,6 +5,17 @@ export function createAuthClient(baseURL, accounts, adapter) {
     Object.assign(config.headers, await (await accounts()).headers())
     return config
   })
+  async function ensureProfile() {
+    let rows=(await client.get('/timeforgeprofiles')).data
+    if(rows[0])return rows[0]
+    try {return (await client.post('/timeforgeprofiles',{payRate:null})).data}
+    catch(error) {
+      if(error.response?.status!==409)throw error
+      rows=(await client.get('/timeforgeprofiles')).data
+      if(!rows[0])throw error
+      return rows[0]
+    }
+  }
   return {
     async login(data) {return {user:await (await accounts()).login(data.identifier,data.password)}},
     async updateProfile(data) {return (await accounts()).updateProfile(data)},
@@ -17,13 +28,12 @@ export function createAuthClient(baseURL, accounts, adapter) {
     },
     async getUser() {return this.restoreUser()},
     async getTimeForgeProfile() {
-      const profiles=(await client.get('/timeforgeprofiles')).data
-      return {payRate:profiles[0]?.payRate ?? null}
+      const profile=await ensureProfile()
+      return {payRate:profile.payRate ?? null}
     },
     async updateTimeForgeProfile(payRate) {
-      const profiles=(await client.get('/timeforgeprofiles')).data
-      const id=profiles[0]?.id
-      const response=id==null ? await client.post('/timeforgeprofiles',{payRate}) : await client.put('/timeforgeprofiles/'+encodeURIComponent(id),{payRate})
+      const profile=await ensureProfile()
+      const response=await client.put('/timeforgeprofiles/'+encodeURIComponent(profile.id),{payRate})
       return {payRate:response.data.payRate ?? null}
     }
   }
