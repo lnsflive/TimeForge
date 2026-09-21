@@ -33,7 +33,7 @@
           <v-list-item to="/dashboard">
             <v-list-item-title> Dashboard </v-list-item-title>
           </v-list-item>
-          <v-list-item to="/settings">
+          <v-list-item to="/profile">
             <v-list-item-title> Settings </v-list-item-title>
           </v-list-item>
           <v-list-item @click="logout">
@@ -63,10 +63,10 @@ export default {
     }
   },
   methods: {
-    logout() {
-      this.$auth.logout()
-      this.$router.push('/login')
-      this.$alerter.showMessage({ content: 'You have been logged out', value: 'success' })
+    async logout() {
+      await this.$strapi.logout()
+      window.location.reload()
+
     },
     reloadPage() {
       window.location.reload()

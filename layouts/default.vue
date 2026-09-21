@@ -1,191 +1,63 @@
 <template>
-  <v-app class="d-flex flex-column fill-height overflow-hidden" theme="dark">
-    <v-app-bar height="66" color="primary" class="flex-shrink-0">
-      <template #prepend>
-        <v-app-bar-nav-icon>
-          <v-icon x-large @click.stop="drawer = !drawer">mdi-menu</v-icon>
-        </v-app-bar-nav-icon>
-      </template>
-
-      <v-spacer />
-
-      <v-app-bar-title>
-        <h3 class="text-center text-h3">TimeForge</h3>
-      </v-app-bar-title>
-
-      <v-spacer />
-
-      <template #append>
-        <v-app-bar-nav-icon>
-          <v-icon x-large @click="reloadPage">mdi-cached</v-icon>
-        </v-app-bar-nav-icon>
-      </template>
-    </v-app-bar>
-
-    <v-main class="flex-grow-1">
-      <div class="main-content">
-        <slot />
-      </div>
-    </v-main>
-
-    <v-footer color="primary" class="flex-shrink-0" height="44">
-      <v-row no-gutters justify="center" align="center">
-        <v-col cols="12" class="text-center">
-          <span class="text-caption"
-            >&copy; {{ new Date().getFullYear() }} TimeForge. All Rights Reserved</span
-          >
-        </v-col>
-      </v-row>
-    </v-footer>
-
-    <v-navigation-drawer
-      v-model="drawer"
-      absolute
-      bottom
-      color="primary"
-      class="rounded-none"
-      temporary
-    >
-      <v-list nav>
-        <VListGroup v-model="group" class="text-center" active-class="black--text font-weight-bold">
-          <VListItem v-for="(item, i) in items" :key="i" :to="item.to" :value="item">
-            <VListItemTitle>{{ item.title }}</VListItemTitle>
-          </VListItem>
-          <VListItem @click="logout">
-            <VListItemTitle>Logout</VListItemTitle>
-          </VListItem>
-        </VListGroup>
-      </v-list>
-    </v-navigation-drawer>
+  <v-app class="timeforge-shell" theme="dark">
+    <header class="app-header">
+      <NuxtLink class="app-title" to="/" aria-label="TimeForge home">TimeForge</NuxtLink>
+      <v-menu v-if="userStore.isLoggedIn" location="bottom end">
+        <template #activator="{ props }">
+          <v-btn v-bind="props" variant="text" class="account-toggle" :aria-label="'Account: ' + userStore.displayName">
+            <v-icon icon="mdi-account-circle" />
+            <span class="account-name">{{ userStore.displayName }}</span>
+            <v-icon icon="mdi-chevron-down" size="18" />
+          </v-btn>
+        </template>
+        <v-list class="account-menu" aria-label="Your account">
+          <div class="account-identity">
+            <strong>{{ userStore.displayName }}</strong>
+            <span>{{ userStore.user?.email }}</span>
+          </div>
+          <v-divider />
+          <v-list-item title="Home" prepend-icon="mdi-home" to="/" exact />
+          <v-list-item title="Dashboard" prepend-icon="mdi-view-dashboard" to="/dashboard" />
+          <v-list-item title="Profile" prepend-icon="mdi-account-edit" to="/profile" />
+          <v-list-item title="Sign out" prepend-icon="mdi-logout" @click="logout" />
+        </v-list>
+      </v-menu>
+    </header>
+    <main class="main-content"><slot /></main>
+    <footer class="app-footer">
+      <span>&copy; {{ new Date().getFullYear() }} TimeForge. All Rights Reserved</span>
+    </footer>
   </v-app>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
 import { useUserStore } from '~/stores/user'
-import { useRouter } from 'vue-router'
-import { useNuxtApp } from 'nuxt/app'
-
-interface NuxtApp {
-  $alerter?: {
-    showMessage(message: { content: string; value: string }): void
-  }
-}
-
-const router = useRouter()
 const userStore = useUserStore()
-const nuxtApp = useNuxtApp() as unknown as NuxtApp
-
-const drawer = ref(false)
-const group = ref(null)
-
-const items = ref([
-  {
-    title: 'Home',
-    to: '/'
-  },
-  {
-    title: 'Dashboard',
-    to: '/dashboard'
-  },
-  {
-    title: 'Settings',
-    to: '/settings'
-  }
-])
-
-// Close drawer when group changes
-watch(group, () => {
-  drawer.value = false
-})
-
-const reloadPage = () => {
-  window.location.reload()
-}
-
+const nuxtApp = useNuxtApp()
 const logout = async () => {
-  await userStore.logout()
-  router.push('/login')
-  nuxtApp.$alerter?.showMessage?.({ content: 'You have been logged out', value: 'success' })
+  try { await nuxtApp.$strapi.logout() }
+  catch {
+    nuxtApp.$alerter?.showMessage?.({content:'Sign out failed. Please retry.',value:'error'})
+    return
+  }
+  userStore.setUser(null)
+  await navigateTo('/login')
 }
 </script>
 
-<style>
-.v-application {
-  font-family: 'Rubik', sans-serif !important;
-  background-color: rgb(13, 19, 35) !important;
-}
-
-/* Override Vuetify defaults */
-.v-main {
-  overflow: hidden !important;
-}
-
-.v-main > .v-main__wrap {
-  overflow: hidden !important;
-}
-
-.v-footer {
-  overflow: hidden !important;
-}
-
-.main-content {
-  background-color: #0d1323;
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.h-100 {
-  height: 100% !important;
-}
-
-.v-navigation-drawer {
-  background-color: rgb(87, 70, 234) !important;
-}
-
-.v-list {
-  background-color: transparent !important;
-}
-
-.v-list-item {
-  color: white !important;
-  margin: 8px;
-  border-radius: 8px;
-}
-
-.v-list-item--active {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.v-list-item:hover {
-  background-color: rgba(255, 255, 255, 0.05) !important;
-}
-
-.v-btn {
-  text-transform: none !important;
-  letter-spacing: 0.0892857143em !important;
-}
-
-.text-h3 {
-  font-size: 1.75rem !important;
-  font-weight: 500;
-  line-height: 2.25rem;
-  letter-spacing: 0.0073529412em !important;
-}
-
-.rounded-b-lg {
-  border-bottom-left-radius: 8px !important;
-  border-bottom-right-radius: 8px !important;
-}
-
-.rounded-t-lg {
-  border-top-left-radius: 8px !important;
-  border-top-right-radius: 8px !important;
-}
-
-.rounded-r-lg {
-  border-top-right-radius: 8px !important;
-  border-bottom-right-radius: 8px !important;
-}
+<style scoped>
+.timeforge-shell { background: #0f1424; color: #fff; font-family: 'Rubik', sans-serif; }
+.timeforge-shell :deep(.v-application__wrap) { height: 100vh; height: 100dvh; min-height: 0; display: flex; flex-direction: column; }
+.app-header { flex: 0 0 66px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0 1rem; background: #5847eb; }
+.app-title { min-width: 0; color: inherit; text-decoration: none; font-size: clamp(1.1rem, 4vw, 1.5rem); line-height: 1.3; font-weight: 500; }
+.app-title:focus-visible { outline: 2px solid white; outline-offset: 5px; border-radius: 2px; }
+.account-toggle { flex-shrink: 0; text-transform: none; }
+.account-name { max-width: 10rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0 .4rem; }
+.main-content { flex: 1 1 0; min-height: 0; overflow: auto; background: #0f1424; }
+.app-footer { flex: 0 0 44px; height: 44px; min-height: 44px; max-height: 44px; display: flex; align-items: center; justify-content: center; padding: 0 .5rem; background: #5847eb; font-size: .75rem; }
+.account-menu { background: #1c1f4a !important; color: #fff; min-width: 240px; max-width: calc(100vw - 24px); border: 1px solid #404679; border-radius: .75rem !important; }
+.account-identity { display: grid; gap: .35rem; padding: .75rem 1rem 1rem; cursor: default; overflow-wrap: anywhere; }
+.account-identity strong { font-weight: 500; }
+.account-identity span { color: #bdc1ff; font-size: .85rem; }
+@media (max-width: 600px) { .account-name { display: none; } }
 </style>

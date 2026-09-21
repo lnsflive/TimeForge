@@ -2,7 +2,7 @@
 
 A professional time tracking application built with Nuxt.js that helps you manage work hours, mileage, and calculate expected payouts.
 
-[View Live Example](https://jaimegonzalezjr.com/Projects/TimeForge) — 🧪 **Test Login:** `test` / `password11`
+[View Live Example](https://jaimegonzalezjr.com/Projects/TimeForge)
 
 ## Features
 
@@ -22,7 +22,7 @@ A professional time tracking application built with Nuxt.js that helps you manag
 
 - Frontend: Nuxt.js with Vuetify
 - Backend: Strapi Headless CMS
-- Authentication: @nuxtjs/auth
+- Authentication: Google and existing local accounts through native Strapi authentication
 - Styling: Vuetify Material Design Framework
 
 ## Prerequisites
@@ -56,11 +56,11 @@ Create a `.env` file in the root directory with the following content:
 
 ```
 # Development
-API_AUTH_URL=http://localhost:1337
+API_AUTH_URL=https://api.jaimegonzalezjr.com
 NODE_ENV=development
 
 # Production (update when deploying)
-# API_AUTH_URL=https://your-strapi-instance.com
+# API_AUTH_URL=https://api.jaimegonzalezjr.com
 ```
 
 ### 3. Strapi Backend Setup
@@ -156,3 +156,23 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with Nuxt.js
 - Styled with Vuetify
 - Powered by Strapi CMS
+
+## Authentication and deployment
+
+TimeForge is a client-rendered SPA (`ssr: false`). `npm run generate` creates `.output/public/index.html` and its static assets. Configure your web server to serve that index for client routes such as `/login`, `/dashboard`, `/profile`, and `/auth/google`. Revalidate HTML after deployments; publish from a completed build rather than compiling inside the live web directory.
+
+Set `NUXT_APP_BASE_URL` to `/` (default) for a dedicated domain or a subdirectory such as `/Projects/TimeForge/`. Set `NUXT_PUBLIC_API_BASE_URL` for the compatible Strapi backend. These values are public and embedded during the build. Keep host-specific paths and settings in the ignored repo-local `.env`; `.env.example` documents the public configuration.
+
+The backend serves the shared account client at `/auth/client.v1.js` and native auth endpoints. In Strapi Admin → OAuth Applications, configure the `timeforge` application's enabled methods, registration, shared/separate session mode, callback URL (`<app URL>/auth/google`), and return URL (`<app URL>/`). Each app uses its own callback. Google provider credentials and the provider-side callback belong on the backend, never in frontend configuration.
+
+The Profile page edits shared display name and a separate owned TimeForge pay-rate profile, created on first use. The backend must enforce ownership of profiles and timesheets. Shared sessions use the common same-origin storage key; separate sessions use an app-specific key. Break reminders run while the page is open, and unfinished clock drafts are scoped to the authenticated account. No service worker is registered.
+
+The Google callback adds a temporary noncredential query parameter to load a fresh return document. The authenticated route guard removes it and redirects signed-in users away from login. Login and callback have a standalone layout; authenticated navigation uses the account menu.
+
+Run `npm test` for authentication regressions and `npm run generate` to verify the static build. Hosting and publishing are installation-specific operations rather than part of the public npm scripts.
+
+### Output directory override
+
+The ignored repo-local `.env` can set `BUILD_OUTPUT` to a directory. Unset or empty keeps the framework's normal output folder. The framework cleans that output during generation/build, so obsolete files do not accumulate.
+
+A local installation can point `BUILD_OUTPUT` directly at its hosted app directory and use the normal npm build/generate command without a deployment script. A failed build can leave that directory incomplete until the next successful build. Keep persistent data outside the build output. Personal paths and environment overrides remain untracked.

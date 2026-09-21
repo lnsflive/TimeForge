@@ -1,140 +1,30 @@
-import { defineNuxtPlugin } from 'nuxt/app'
-
-interface TimerState {
-  clockedIn: boolean
-  startTime: string | null
-  endTime: string | null
-  startLunch: string | null
-  endLunch: string | null
-  isOnBreak: boolean
-  isOnLunch: boolean
-}
-
-interface NotificationData {
-  title: string
-  body: string
-  delay: number
-  tag: string
-}
-
-interface BreakState {
-  startTime: string | null
-}
-
-export default defineNuxtPlugin((nuxtApp) => {
+import { defineNuxtPlugin, useRuntimeConfig } from 'nuxt/app'
+import { retireTimeForgeWorkers } from '~/utils/retired-workers.js'
+export default defineNuxtPlugin(nuxtApp => {
+  const scheduled = new Map<string, ReturnType<typeof setTimeout>>()
+  const clear = () => {scheduled.forEach(timer => clearTimeout(timer));scheduled.clear()}
   const timerService = {
-    serviceWorker: null as ServiceWorkerRegistration | null,
-    notificationPermission: 'default' as NotificationPermission,
-
-    async init() {
-      // Skip service worker registration in development
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Skipping service worker registration in development mode')
-        return
-      }
-
-      if (process.client && 'serviceWorker' in navigator) {
-        try {
-          // Unregister any existing service workers first
-          const registrations = await navigator.serviceWorker.getRegistrations()
-          for (const registration of registrations) {
-            await registration.unregister()
-          }
-
-          // Register the new service worker
-          const registration = await navigator.serviceWorker.register('/sw-custom.js', {
-            scope: '/',
-            type: 'module'
-          })
-          console.log('Custom Service Worker registered:', registration)
-
-          this.serviceWorker = registration
-          await this.requestNotificationPermission()
-          navigator.serviceWorker.addEventListener('message', this.handleServiceWorkerMessage)
-
-          return registration
-        } catch (error) {
-          console.error('Service Worker registration failed:', error)
-        }
-      }
+    sendTimerState(state: {clockedIn:boolean}) {if(!state.clockedIn)clear()},
+    sendBreakState(state: {startTime:string|null}|null) {if(!state?.startTime)clear()},
+    scheduleNotification(data: {title:string,body:string,delay:number,tag:string}) {
+      const previous=scheduled.get(data.tag);if(previous)clearTimeout(previous)
+      scheduled.set(data.tag,setTimeout(()=>{
+        scheduled.delete(data.tag)
+        nuxtApp.$alerter?.showMessage?.({content:data.title+': '+data.body,value:'info'})
+      },Math.max(0,data.delay)))
     },
-
-    async requestNotificationPermission() {
-      if (process.client && 'Notification' in window) {
-        const permission = await Notification.requestPermission()
-        this.notificationPermission = permission
-        console.log('Notification permission:', permission)
-        return permission
+    scheduleBreakReminders(startTime:string) {
+      const elapsed=Date.now()-Date.parse(startTime)
+      if(!Number.isFinite(elapsed))return
+      for(const [minutes,title,body,tag] of [[14,'Break almost over','Your break ends in one minute.','break-warning'],[15,'Break over','Your 15-minute break has ended.','break-ended']] as const) {
+        const delay=minutes*60000-elapsed
+        if(delay>0)this.scheduleNotification({title,body,tag,delay})
       }
-      return 'denied' as NotificationPermission
-    },
-
-    sendTimerState(timerState: TimerState) {
-      if (this.serviceWorker && this.serviceWorker.active) {
-        this.serviceWorker.active.postMessage({
-          type: 'TIMER_STATE_UPDATE',
-          data: timerState
-        })
-      }
-    },
-
-    sendBreakState(breakState: BreakState | null) {
-      if (this.serviceWorker && this.serviceWorker.active) {
-        this.serviceWorker.active.postMessage({
-          type: 'BREAK_STATE_UPDATE',
-          data: breakState
-        })
-      }
-    },
-
-    scheduleNotification(notificationData: NotificationData) {
-      if (this.serviceWorker && this.serviceWorker.active) {
-        this.serviceWorker.active.postMessage({
-          type: 'SCHEDULE_NOTIFICATION',
-          data: notificationData
-        })
-      }
-    },
-
-    scheduleBreakReminders(breakStartTime: string) {
-      const now = new Date().getTime()
-      const breakStart = new Date(breakStartTime).getTime()
-
-      // 14-minute warning
-      const warningDelay = 14 * 60 * 1000 - (now - breakStart)
-      if (warningDelay > 0) {
-        this.scheduleNotification({
-          title: 'Break Almost Over',
-          body: 'Your break ends in 1 minute!',
-          delay: warningDelay,
-          tag: 'break-warning'
-        })
-      }
-
-      // 15-minute notification
-      const endDelay = 15 * 60 * 1000 - (now - breakStart)
-      if (endDelay > 0) {
-        this.scheduleNotification({
-          title: 'Break Time Over',
-          body: 'Your 15-minute break has ended.',
-          delay: endDelay,
-          tag: 'break-ended'
-        })
-      }
-    },
-
-    handleServiceWorkerMessage(event: MessageEvent) {
-      console.log('Message from Service Worker:', event.data)
     }
   }
-
-  if (process.client) {
-    timerService.init()
+  if(import.meta.client) {
+    void retireTimeForgeWorkers(navigator.serviceWorker,location.origin,useRuntimeConfig().app.baseURL).catch(()=>{})
+    window.addEventListener('pagehide',clear,{once:true})
   }
-
-  return {
-    provide: {
-      timerService
-    }
-  }
+  return {provide:{timerService}}
 })

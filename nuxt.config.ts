@@ -1,7 +1,10 @@
 import { defineNuxtConfig } from 'nuxt/config'
+import { resolve } from 'node:path'
 import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
+const appBase = (process.env.NUXT_APP_BASE_URL || '/').replace(/\/?$/, '/')
+
 export default defineNuxtConfig({
   devtools: { enabled: true },
   ssr: false,
@@ -16,6 +19,7 @@ export default defineNuxtConfig({
   ],
 
   app: {
+    baseURL: appBase,
     head: {
       titleTemplate: '%s - TimeForge',
       title: 'TimeForge',
@@ -28,14 +32,14 @@ export default defineNuxtConfig({
         { name: 'format-detection', content: 'telephone=no' }
       ],
       link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.png' },
+        { rel: 'icon', type: 'image/png', href: appBase + 'favicon.png?v=2' },
         {
           rel: 'stylesheet',
           href: 'https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Material+Icons'
         },
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Rubik:wght@400;500&display=swap'
+          href: 'https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500&display=swap'
         }
       ]
     }
@@ -58,7 +62,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.API_AUTH_URL || 'https://strapi.jaimegonzalezjr.com'
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || process.env.API_AUTH_URL || 'https://api.jaimegonzalezjr.com'
     }
   },
 
@@ -67,7 +71,8 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    preset: 'node-server',
+    ...(process.env.BUILD_OUTPUT ? { output: { publicDir: resolve(process.env.BUILD_OUTPUT) } } : {}),
+    prerender: { routes: ['/'], crawlLinks: false, ignore: ['/200.html', '/404.html'] },
     compatibilityDate: '2025-07-11'
   },
 

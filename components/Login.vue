@@ -1,251 +1,89 @@
 <template>
-  <v-container style="height: 100%" class="d-flex align-center justify-center">
-    <v-card style="background: #1d204b; width: 300px; padding: 20px">
-      <v-form ref="form" v-model="valid" @submit.prevent="checkSend">
-        <h3 class="text-center text-h3 my-8">TimeForge</h3>
-        <v-divider />
-        <v-card-text style="font-size: 35px" class="text-center pb-8 accent--text">
-          {{ status }}
-        </v-card-text>
-        <v-text-field
-          v-model="username"
-          prepend-inner-icon="mdi-account"
-          autocomplete="username"
-          autofocus
-          label="Username"
-          type="text"
-          name="username"
-          placeholder="Enter your username"
-          persistent-placeholder
-          outlined
-          clearable
-          rounded
-          required
-          :rules="[(v) => !!v || 'Username is required']"
-          tabindex="1"
-        />
-        <v-text-field
-          v-if="registered"
-          v-model="email"
-          :rules="emailRules"
-          prepend-inner-icon="mdi-email"
-          autocomplete="email"
-          label="E-mail"
-          type="email"
-          name="email"
-          placeholder="Enter your email"
-          persistent-placeholder
-          outlined
-          clearable
-          rounded
-          required
-          tabindex="2"
-        />
-        <v-text-field
-          v-model="password"
-          :rules="passwordRules"
-          prepend-inner-icon="mdi-key"
-          autocomplete="current-password"
-          label="Password"
-          name="password"
-          placeholder="Enter your password"
-          persistent-placeholder
-          outlined
-          clearable
-          rounded
-          type="password"
-          required
-          tabindex="3"
-        />
-        <v-btn
-          block
-          :disabled="!valid"
-          color="success"
-          style="height: 50px; margin-top: 10px"
-          type="submit"
-          @click="checkSend"
-        >
-          {{ btnStatus }}
-        </v-btn>
-        <v-btn
-          block
-          color="warning"
-          style="width: 100%; height: 50px; margin-top: 20px"
-          @click="clear"
-        >
-          reset
-        </v-btn>
-        <v-btn text plain class="float-right" @click="toggleRegister">
-          {{ btnRegister }}
-        </v-btn>
-      </v-form>
-    </v-card>
-  </v-container>
+  <section class="login-card" aria-labelledby="login-title">
+    <div class="login-brand">
+      <svg class="login-clock" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <circle cx="24" cy="24" r="20" stroke="currentColor" stroke-width="2" />
+        <path d="M24 12v13l8 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <div>
+        <h1 id="login-title">TimeForge</h1>
+        <p>Sign in to track your time.</p>
+      </div>
+    </div>
+    <div class="login-controls">
+      <div ref="accountForm" />
+      <p v-if="error" class="login-error" role="alert">{{ error }}</p>
+    </div>
+  </section>
 </template>
-
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { mountAccountForm } from '~/utils/shared-accounts.js'
 import { useUserStore } from '~/stores/user'
-import { navigateTo } from '#app'
-
-interface StrapiAuthResponse {
-  user: {
-    id: number
-    username: string
-    email: string
-  }
-  jwt: string
-}
-
-interface StrapiPlugin {
-  login(data: { identifier: string; password: string }): Promise<StrapiAuthResponse>
-  register(data: { username: string; email: string; password: string }): Promise<StrapiAuthResponse>
-}
-
-interface AlertMessage {
-  content: string
-  value: 'success' | 'error' | 'info' | 'warning'
-}
-
-interface AlerterPlugin {
-  showMessage(message: AlertMessage): void
-}
-
-interface NuxtAppPlugins {
-  $strapi: StrapiPlugin
-  $alerter: AlerterPlugin
-}
-
-const userStore = useUserStore()
-const { $strapi, $alerter } = useNuxtApp() as unknown as NuxtAppPlugins
-
-const form = ref<any>(null)
-const username = ref('')
-const email = ref('')
-const password = ref('')
-const valid = ref(false)
-const registered = ref(false)
+const accountForm = ref<HTMLElement | null>(null)
 const error = ref('')
-
-const status = ref('Login')
-const btnStatus = ref('Submit')
-const btnRegister = ref('Register')
-
-const emailRules = [
-  (v: string) => !!v || 'E-mail is required',
-  (v: string) => /.+@.+\..+/.test(v) || 'E-mail must be valid'
-]
-
-const passwordRules = [
-  (v: string) => !!v || 'Password is required',
-  (v: string) => (v && v.length >= 6) || 'Password must be at least 6 characters'
-]
-
-const clear = () => {
-  form.value?.reset()
-  username.value = ''
-  email.value = ''
-  password.value = ''
-}
-
-const toggleRegister = () => {
-  if (!registered.value) {
-    status.value = 'Register'
-    btnStatus.value = 'Register'
-    btnRegister.value = 'Already a User'
-    registered.value = true
-  } else {
-    status.value = 'Login'
-    btnStatus.value = 'Submit'
-    btnRegister.value = 'Register'
-    registered.value = false
-  }
-  clear()
-}
-
-const login = async () => {
-  error.value = ''
-  try {
-    console.log('Attempting login with:', { identifier: username.value, password: '***' })
-    const response = await $strapi.login({
-      identifier: username.value,
-      password: password.value
-    })
-
-    console.log('Login successful:', { userId: response.user.id, username: response.user.username })
-
-    // Update user store with complete user object
-    await userStore.setUser(response.user)
-
-    $alerter.showMessage({
-      content: 'Welcome ' + response.user.username,
-      value: 'success'
-    })
-
-    // Navigate to home page
-    await navigateTo('/')
-  } catch (e: any) {
-    console.error('Login error:', e)
-    error.value = e.response?.data?.error?.message || e.message || 'Login failed'
-    $alerter.showMessage({ content: error.value, value: 'error' })
-  }
-}
-
-const register = async () => {
-  error.value = ''
-  try {
-    console.log('Attempting registration with:', { username: username.value, email: email.value })
-    const response = await $strapi.register({
-      username: username.value,
-      email: email.value,
-      password: password.value
-    })
-
-    console.log('Registration successful:', {
-      userId: response.user.id,
-      username: response.user.username
-    })
-    $alerter.showMessage({ content: 'Registration successful! Please log in.', value: 'success' })
-    clear()
-    toggleRegister()
-  } catch (e: any) {
-    console.error('Registration error:', e)
-    error.value = e.response?.data?.error?.message || e.message || 'Registration failed'
-    $alerter.showMessage({ content: error.value, value: 'error' })
-  }
-}
-
-const checkSend = async (event: Event) => {
-  event.preventDefault()
-  console.log('Form submitted:', { registered: registered.value, username: username.value })
-
-  if (!username.value || !password.value || (registered.value && !email.value)) {
-    $alerter.showMessage({ content: 'Please fill in all required fields', value: 'error' })
-    return
-  }
-
-  if (registered.value) {
-    await register()
-  } else {
-    await login()
-  }
-}
-
-onMounted(() => {
-  // Check if already logged in
-  if (userStore.isLoggedIn) {
-    navigateTo('/')
-  }
+let controls: any
+onMounted(async () => {
+  try { controls = await mountAccountForm(accountForm.value, async (user: any) => {useUserStore().setUser(user);await navigateTo('/')}) }
+  catch (err: any) {error.value = err.message}
 })
+onBeforeUnmount(() => controls?.destroy())
 </script>
 
-<style>
-.v-input input:invalid,
-input:-webkit-autofill {
-  border: none;
-  -webkit-text-fill-color: #787dbf;
-  box-shadow: 0 0 0px 1000px #1d204b inset;
-  -webkit-box-shadow: 0 0 0px 1000px #1d204b inset;
-  transition: background-color 5000s ease-in-out 0s;
+<style scoped>
+/* Palette, Rubik weights and overlapping rounded panels follow the supplied
+   time-tracking-dashboard-main reference and TimeForge's original navy card. */
+.login-card {
+  width: 100%;
+  max-width: 26rem;
+  border-radius: 1rem;
+  background: #1c1f4a;
+  color: #fff;
+  --account-input-background: #1c1f4a;
+  --account-input-color: #fff;
+  --account-button-background: #1c1f4a;
+  --account-button-color: #fff;
 }
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.75rem;
+  border-radius: 1rem;
+  background: #5847eb;
+}
+.login-clock { width: 3rem; height: 3rem; flex-shrink: 0; }
+.login-brand h1 { font-size: clamp(1.75rem, 7vw, 2.25rem); font-weight: 300; line-height: 1.2; }
+.login-brand p { margin: .5rem 0 0; color: #e4e1ff; font-size: .9rem; line-height: 1.5; }
+.login-controls { padding: 1.75rem; }
+.login-controls :deep(.shared-account-form) { max-width: none !important; gap: 1.1rem !important; }
+.login-controls :deep(label) { gap: .5rem; color: #bdc1ff; font-size: .9rem; }
+.login-controls :deep(input) {
+  min-width: 0;
+  width: 100%;
+  min-height: 3rem;
+  padding: .75rem 1rem !important;
+  border: 1px solid #777fba !important;
+  border-radius: .65rem !important;
+  font-size: 1rem !important;
+  line-height: 1.5;
+}
+.login-controls :deep(input:autofill) {
+  -webkit-text-fill-color: #fff;
+  box-shadow: 0 0 0 1000px #1c1f4a inset;
+}
+.login-controls :deep(button) {
+  min-height: 3rem;
+  border-radius: .65rem !important;
+  border-color: #777fba !important;
+  font-size: 1rem !important;
+  line-height: 1.5;
+}
+.login-controls :deep(button[type="submit"]) { background: #5847eb !important; border-color: #5847eb !important; font-weight: 500; }
+.login-controls :deep(button[type="submit"] + button) { border-color: transparent !important; color: #bdc1ff !important; font-size: .9rem !important; }
+.login-controls :deep(button:hover:not(:disabled)) { background: #34397b !important; }
+.login-controls :deep(button:disabled) { opacity: .6; cursor: wait !important; }
+.login-controls :deep(input:focus-visible), .login-controls :deep(button:focus-visible) { outline: 2px solid #bbc0ff; outline-offset: 3px; }
+.login-controls :deep([role="status"]:empty) { display: none; }
+.login-controls :deep([role="status"]), .login-error { color: #ffbdac; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 360px) { .login-brand, .login-controls { padding: 1.25rem; } }
 </style>
