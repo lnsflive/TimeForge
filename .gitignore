@@ -93,3 +93,9 @@ sw.*
 
 # Nuxt generated output
 .output/
+
+# Local npm runtime configuration
+.npmrc
+
+# Host-only configuration
+.local/

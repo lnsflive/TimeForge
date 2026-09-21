@@ -1,4 +1,5 @@
 import { defineNuxtConfig } from 'nuxt/config'
+import { resolve } from 'node:path'
 import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
@@ -70,6 +71,7 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    ...(process.env.BUILD_OUTPUT ? { output: { publicDir: resolve(process.env.BUILD_OUTPUT) } } : {}),
     prerender: { routes: ['/'], crawlLinks: false, ignore: ['/200.html', '/404.html'] },
     compatibilityDate: '2025-07-11'
   },
