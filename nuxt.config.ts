@@ -2,7 +2,7 @@ import { defineNuxtConfig } from 'nuxt/config'
 import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
-const appBase = (process.env.NUXT_APP_BASE_URL || '/Projects/TimeForge/').replace(/\/?$/, '/')
+const appBase = (process.env.NUXT_APP_BASE_URL || '/').replace(/\/?$/, '/')
 
 export default defineNuxtConfig({
   devtools: { enabled: true },

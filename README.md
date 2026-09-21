@@ -157,41 +157,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Styled with Vuetify
 - Powered by Strapi CMS
 
-## Shared sign-in deployment
+## Authentication and deployment
 
-This frontend uses native Strapi endpoints at `https://api.jaimegonzalezjr.com`: `POST /auth/local`, `GET /users/me`, and `GET /auth/google/callback`. The returned JWT uses the shared same-origin local-storage key `strapi_jwt` and is sent in the Authorization bearer header. Logout clears that key and best-effort clears legacy cookies through `/auth/logout`.
+TimeForge is a client-rendered SPA (`ssr: false`). `npm run generate` creates `.output/public/index.html` and its static assets. Configure your web server to serve that index for client routes such as `/login`, `/dashboard`, `/profile`, and `/auth/google`. Revalidate HTML after deployments; publish from a completed build rather than compiling inside the live web directory.
 
-Google starts through native Strapi-host Google connect until its Google Console redirect migration. Register applications in Strapi Admin → OAuth Applications with a key, name, HTTPS callbackUrl, HTTPS returnUrl, and enabled flag. Point each app’s login button to the common callback page with `?app=its-key`. The public `GET /oauthapplications?key=its-key` endpoint returns only that enabled app; adding an app does not require editing frontend allowlists. All participating applications return through `/Projects/TimeForge/auth/google`. A per-tab nonce verifies the return, sensitive query parameters are removed from browser history immediately, and onward destinations come from the enabled OAuth Applications registry. Provider tokens are exchanged for the native Strapi JWT.
+Set `NUXT_APP_BASE_URL` to `/` (default) for a dedicated domain or a subdirectory such as `/Projects/TimeForge/`. Set `NUXT_PUBLIC_API_BASE_URL` for the compatible Strapi backend. These values are public and embedded during the build. Keep host paths, deployment scripts, and environment-specific settings outside this application repository; `.env` remains ignored for local development.
 
-Pay rate is separate from identity. Native `GET /timeforgeprofiles` returns the authenticated user's profile list; `POST /timeforgeprofiles` creates their profile and `PUT /timeforgeprofiles/:id` updates it. Server controllers must enforce ownership on profiles and timesheets, regardless of browser guards. New users have an unset pay rate.
+The backend serves the shared account client at `/auth/client.v1.js` and native auth endpoints. In Strapi Admin → OAuth Applications, configure the `timeforge` application's enabled methods, registration, shared/separate session mode, callback URL (`<app URL>/auth/google`), and return URL (`<app URL>/`). Each app uses its own callback. Google provider credentials and the provider-side callback belong on the backend, never in frontend configuration.
 
-The default frontend base path is `/Projects/TimeForge/`. Override `NUXT_APP_BASE_URL` for a different deployment and register its return URL server-side. `API_AUTH_URL` is public configuration; do not include provider secrets in the frontend. Google client configuration belongs on the API. Existing local registration remains available and may require email confirmation according to backend policy; this frontend does not bypass confirmation or merge existing accounts.
+The Profile page edits shared display name and a separate owned TimeForge pay-rate profile, created on first use. The backend must enforce ownership of profiles and timesheets. Shared sessions use the common same-origin storage key; separate sessions use an app-specific key. Break reminders run while the page is open, and unfinished clock drafts are scoped to the authenticated account. No service worker is registered.
 
-Run `npm test` for native authentication regressions and `npm run build` to verify the production bundle.
+The Google callback adds a temporary noncredential query parameter to load a fresh return document. The authenticated route guard removes it and redirects signed-in users away from login. Login and callback have a standalone layout; authenticated navigation uses the account menu.
 
-### Synology Web Station
-
-Work from `/volume1/git-server/environment/NodeJS/TimeForge`. Set `NUXT_PUBLIC_API_BASE_URL` (or legacy `API_AUTH_URL`) and `NUXT_APP_BASE_URL` in `.env` before building. Static assets embed these public settings.
-
-Run `npm run generate`, then `npm run deploy:preview` to review source, destination and backup path without writing the web root. `npm run deploy` regenerates and copies to `DEPLOY_TARGET` (default `/volume1/web/Projects/TimeForge`) after backing up the existing directory outside the web root. It never deletes unrelated destination files. Coordinate deployment with the native Strapi controllers and Google callback allowlist. Configure the web server to serve `200.html` for SPA deep links such as `/Projects/TimeForge/login`.
-
-Profile photo uploads are temporarily disabled pending a server-authorized upload route. Existing photos remain visible when supplied in the session response.
-
-In-progress clock drafts are now stored under the authenticated account ID. Legacy unscoped drafts are retained in browser storage but are not automatically assigned to whichever account signs in. Finish any active legacy shift before switching the deployed frontend.
-
-The Nuxt commands preload a Synology-only workaround for the installed Node runtime crashing when iterating `Intl.Segmenter` results. It disables that optional formatting API for build tools, which fall back to character splitting; it does not alter browser runtime code.
-
-## Account UI and app-local callbacks
-
-TimeForge mounts the universal account form from `https://api.jaimegonzalezjr.com/auth/client.v1.js` inside its own layout. That client lives in the Strapi repository. Google returns to TimeForge's own `/auth/google` route; games use their own callback pages. Configure methods, password registration, callback/return URL, and shared/separate session in Strapi Content Manager → OAuth Applications. TimeForge currently supports Google and password/register with shared login. The local Strapi adapter keeps profile/timesheet requests in this app and delegates account operations to the shared client.
-
-TimeForge is a static client-rendered SPA (`ssr:false`) deployed from `.output/public`. No service worker is registered. Startup retires only TimeForge-scoped workers and its explicitly known legacy `/sw-custom.js` registration; other apps' workers and caches are untouched. Break reminders run only while the page is open. The Profile page (`/profile`, with `/settings` compatibility redirect) shows shared identity, edits the shared display name and stores the hourly rate separately in the TimeForge profile.
-
-
-### Synology SPA hosting
-
-The generated site has one HTML entry: `.output/public/index.html`. Vue Router handles application routes; `ssr: false` and disabled link crawling prevent per-page HTML exports. Static images belong in `public/`; the favicon URL uses the configured app base.
-
-`ops/nginx/timeforge.conf` scopes Web Station's SPA fallback and cache revalidation to `/Projects/TimeForge/`. Install with `ops/install-webstation-cache.py` as a Synology administrator; it validates nginx before reloading and restores the previous include on failure. Reapply after a Web Station update if the custom include is removed. The deploy script checks this configuration before publication. It stages only the current build, backs up the published directory, then replaces that directory using renames. Old bundles, route files, and service workers are not carried into the new release. A failed publication rename restores the previous directory. Store persistent uploads outside this generated site directory.
-
-The Google callback navigates to a fresh root document using a temporary `_auth_return` query parameter. The authenticated route guard removes it using client navigation. This prevents browsers with legacy cached HTML from loading the retired auth implementation after a successful Google exchange. No credential is included in that parameter.
+Run `npm test` for authentication regressions and `npm run generate` to verify the static build. Hosting and publishing are installation-specific operations rather than part of the public npm scripts.
