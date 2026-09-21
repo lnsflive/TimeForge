@@ -10,7 +10,7 @@
           persistent-placeholder
           prepend-icon="mdi-cash"
           label="Set Pay Rate"
-          :placeholder="String(payRate)"
+          placeholder="Not set"
         />
         <v-btn type="submit" class="float-right primary"> Submit </v-btn>
       </v-form>
@@ -30,13 +30,14 @@
           <VIcon>mdi-pencil</VIcon>
         </template>
       </VListItem>
-      <VListItem @click="payDialogue = !payDialogue">
+      <VListItem @click="openPayRate">
         <template #prepend>
           <VAvatar>
             <VIcon x-large color="success">mdi-cash</VIcon>
           </VAvatar>
         </template>
         <VListItemTitle>Change Pay Rate</VListItemTitle>
+        <VListItemSubtitle>{{ payRate === null ? 'Not set' : payRate.toFixed(2) + ' per hour' }}</VListItemSubtitle>
         <template #append>
           <VIcon>mdi-pencil</VIcon>
         </template>
@@ -53,8 +54,13 @@ import { authErrorMessage } from '~/utils/auth-client.js'
 const nuxtApp = useNuxtApp()
 const userStore = useUserStore()
 const payDialogue = ref(false)
-const payRate = computed(() => userStore.timeforgeProfile?.payRate ?? 0)
+const payRate = computed(() => userStore.timeforgeProfile?.payRate ?? null)
 const newRate = ref<number | string | null>(null)
+
+const openPayRate = () => {
+  newRate.value = payRate.value
+  payDialogue.value = true
+}
 
 const changeRate = async () => {
   const value = newRate.value === null || newRate.value === '' ? null : Number(newRate.value)
