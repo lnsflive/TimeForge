@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import { completeGoogleLogin, startGoogleLogin } from '~/utils/shared-accounts.js'
 
+definePageMeta({ layout: 'auth' })
 const error = ref('')
 // Remove credentials from the visible URL/history before making any API request.
 const search = window.location.search
