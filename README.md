@@ -27,7 +27,7 @@ A professional time tracking application built with Nuxt.js that helps you manag
 
 ## Prerequisites
 
-- Node.js (v14 or later recommended)
+- Node.js 20.19+ (20.x) or 22.12+; Node.js 22 LTS recommended
 - npm or yarn package manager
 - Docker (optional, for containerized Strapi)
 
@@ -41,10 +41,10 @@ git clone https://github.com/yourusername/timeforge.git
 cd timeforge
 
 # Install dependencies (using npm)
-npm install --legacy-peer-deps
+npm ci
 
 # OR if using yarn
-yarn install --legacy-peer-deps
+yarn install
 
 # Create .env file
 cp .env.example .env
