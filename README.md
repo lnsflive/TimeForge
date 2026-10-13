@@ -171,6 +171,12 @@ The Google callback adds a temporary noncredential query parameter to load a fre
 
 Run `npm test` for authentication regressions and `npm run generate` to verify the static build. Hosting and publishing are installation-specific operations rather than part of the public npm scripts.
 
+### Dependency security patches
+
+`npm ci` applies the checked-in `patch-package` patches before preparing Nuxt, and fails if a patch cannot be applied. Nuxt DevTools 3.4.2 uses the named `simpleGit` export so it can run with the patched `simple-git` 4.0.2 release. The pinned `node-forge` 1.4.0 dependency includes the nested DigestAlgorithm validation fix from [upstream PR #1152](https://github.com/digitalbazaar/forge/pull/1152) for CVE-2026-85393. The security tests reject a malformed RSA signature and verify that valid signatures still work.
+
+These pins and patches are temporary: remove them when compatible upstream releases include the fixes. Dependency scanners may continue to report `node-forge` 1.4.0 because they inspect the published version rather than the patched source. Do not skip install scripts when building or running the application.
+
 ### Output directory override
 
 The ignored repo-local `.env` can set `BUILD_OUTPUT` to a directory. Unset or empty keeps the framework's normal output folder. The framework cleans that output during generation/build, so obsolete files do not accumulate.
