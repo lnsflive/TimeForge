@@ -3,6 +3,13 @@ import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import vm from 'node:vm'
 import ts from 'typescript'
+
+test('shared accounts use the canonical API host for the OAuth broker', () => {
+  const source = readFileSync(new URL('../utils/shared-accounts.js', import.meta.url), 'utf8')
+  assert.match(source, /sdk\.create\(\{app:'timeforge',apiBase,brokerBase:apiBase\}\)/)
+  assert.doesNotMatch(source, /strapi\.jaimegonzalezjr\.com/)
+})
+
 test('shared Google callback bypasses application session guard with either directory spelling', async () => {
   const source = readFileSync(new URL('../middleware/auth.global.ts', import.meta.url), 'utf8')
   const output = ts.transpileModule(source, {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText
