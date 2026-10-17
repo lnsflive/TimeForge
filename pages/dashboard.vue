@@ -1,10 +1,12 @@
 <template>
-  <div class="fill-height d-flex px-4 my-4">
-    <v-card width="1200px" max-width="100%" class="mx-auto d-flex flex-column">
-      <v-card-title
-        class="d-flex justify-space-between align-center px-6 py-4 primary flex-shrink-0"
-      >
-        <span>Timesheet Report</span>
+  <v-container class="reports-page">
+    <section class="reports-shell" aria-labelledby="reports-heading">
+      <header class="reports-header">
+        <div>
+          <p class="eyebrow">Work history</p>
+          <h1 id="reports-heading">Timesheet reports</h1>
+          <p>Review your hours, mileage, and estimated earnings.</p>
+        </div>
         <v-menu
           ref="menu"
           v-model="menuOpen"
@@ -15,27 +17,32 @@
           min-width="290px"
         >
           <template #activator="{ props }">
-            <v-btn text v-bind="props">
-              <v-icon left> mdi-calendar </v-icon>
+            <v-btn class="date-filter" variant="outlined" v-bind="props">
+              <v-icon start>mdi-calendar-outline</v-icon>
               {{ dateRangeText }}
             </v-btn>
           </template>
           <v-date-picker v-model="dateRange" range no-title @update:model-value="onDateSelect" />
         </v-menu>
-      </v-card-title>
-
-      <v-divider class="flex-shrink-0" />
-
-      <div class="flex-grow-1 overflow-hidden">
+      </header>
+      <div v-if="loading" class="report-state" role="status">
+        <v-progress-circular indeterminate color="primary" />
+        <span>Loading your timesheets…</span>
+      </div>
+      <div v-else-if="error" class="report-state report-state--error" role="alert">
+        <v-icon icon="mdi-alert-circle-outline" size="32" />
+        <span>{{ error }}</span>
+        <v-btn variant="outlined" @click="fetchTimesheets">Try again</v-btn>
+      </div>
+      <div v-else>
         <timesheet-report
-          class="h-100"
           :entries="filteredEntries"
           :pay-rate="payRate"
           @entries-deleted="fetchTimesheets"
         />
       </div>
-    </v-card>
-  </div>
+    </section>
+  </v-container>
 </template>
 
 <script setup lang="ts">
@@ -44,26 +51,9 @@ import { useUserStore } from '~/stores/user'
 import { useAlertStore } from '~/stores/alert'
 import { useNuxtApp } from 'nuxt/app'
 import TimesheetReport from '@/components/TimesheetReport.vue'
+import type { TimesheetEntry } from '~/utils/timesheet'
 
-interface TimesheetEntry {
-  id: number
-  date: string
-  startTime: string
-  endTime: string
-  startLunch?: string | null
-  endLunch?: string | null
-  startMiles?: number | null
-  endMiles?: number | null
-  owner: string
-}
-
-interface NuxtApp {
-  $axios: {
-    get(url: string, config?: any): Promise<{ data: TimesheetEntry[] }>
-  }
-}
-
-const nuxtApp = useNuxtApp() as unknown as NuxtApp
+const nuxtApp = useNuxtApp()
 const userStore = useUserStore()
 const alertStore = useAlertStore()
 
@@ -107,8 +97,9 @@ const fetchTimesheets = async () => {
       }
     })
     entries.value = response.data
-  } catch (e: any) {
-    const errorMessage = e.response?.data?.message || 'Failed to fetch timesheets'
+  } catch (e: unknown) {
+    const requestError = e as { response?: { data?: { message?: string } } }
+    const errorMessage = requestError.response?.data?.message || 'Failed to fetch timesheets'
     error.value = errorMessage
     alertStore.showMessage({ content: errorMessage, value: 'error' })
   } finally {
@@ -121,21 +112,20 @@ onMounted(async () => {
 })
 </script>
 
-<style>
-.v-card {
-  border-radius: 12px !important;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.v-card-title {
-  color: white !important;
-}
-
-/* Reduce table header padding */
-:deep(.v-data-table-header th) {
-  padding-top: 8px !important;
-  padding-bottom: 8px !important;
+<style scoped>
+.reports-page { max-width: 1240px; padding: clamp(1rem, 4vw, 3rem); }
+.reports-shell { overflow: hidden; border: 1px solid var(--tf-border); border-radius: 1.4rem; background: rgba(21, 27, 49, .92); box-shadow: 0 24px 60px rgba(0, 0, 0, .18); }
+.reports-header { display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: clamp(1.25rem, 3vw, 2rem); border-bottom: 1px solid var(--tf-border); }
+.eyebrow { margin: 0 0 .45rem; color: var(--tf-primary); font-size: .72rem; font-weight: 500; letter-spacing: .13em; text-transform: uppercase; }
+.reports-header h1 { margin: 0; font-size: clamp(1.75rem, 4vw, 2.6rem); font-weight: 400; letter-spacing: -.035em; }
+.reports-header p:last-child { margin: .55rem 0 0; color: var(--tf-muted); }
+.date-filter { min-width: 11rem; text-transform: none; }
+.report-state { min-height: 420px; display: grid; place-items: center; align-content: center; gap: 1rem; color: var(--tf-muted); }
+.report-state--error { color: var(--tf-danger); }
+@media (max-width: 700px) {
+  .reports-page { padding: .85rem; }
+  .reports-shell { border-radius: 1rem; }
+  .reports-header { align-items: stretch; flex-direction: column; gap: 1.2rem; }
+  .date-filter { width: 100%; }
 }
 </style>

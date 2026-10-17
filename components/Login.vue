@@ -17,14 +17,23 @@
   </section>
 </template>
 <script setup lang="ts">
-import { mountAccountForm } from '~/utils/shared-accounts.js'
+import { mountAccountForm } from '~/utils/shared-accounts'
 import { useUserStore } from '~/stores/user'
+import { authErrorMessage } from '~/utils/auth-client'
+import type { AccountFormControls, AccountUser } from '~/types/accounts'
+
 const accountForm = ref<HTMLElement | null>(null)
 const error = ref('')
-let controls: any
+let controls: AccountFormControls | undefined
 onMounted(async () => {
-  try { controls = await mountAccountForm(accountForm.value, async (user: any) => {useUserStore().setUser(user);await navigateTo('/')}) }
-  catch (err: any) {error.value = err.message}
+  try {
+    controls = await mountAccountForm(accountForm.value, async (user: AccountUser) => {
+      useUserStore().setUser(user)
+      await navigateTo('/')
+    })
+  } catch (err: unknown) {
+    error.value = authErrorMessage(err, 'Account service unavailable. Please retry.')
+  }
 })
 onBeforeUnmount(() => controls?.destroy())
 </script>

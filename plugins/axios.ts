@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getAccounts } from '~/utils/shared-accounts.js'
+import { getAccounts } from '~/utils/shared-accounts'
 import { defineNuxtPlugin, useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { useUserStore } from '~/stores/user'
 

@@ -22,9 +22,6 @@ export default defineNuxtPlugin((nuxtApp) => {
         timeout
       })
 
-      // Log to console
-      console.log(`[${type}] ${title}: ${message}`)
-
       // Example: Use browser notifications if available
       if (process.client && 'Notification' in window && Notification.permission === 'granted') {
         new Notification(title, {

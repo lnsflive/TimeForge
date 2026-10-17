@@ -14,13 +14,13 @@ A professional time tracking application built with Nuxt.js that helps you manag
 
 ## Screenshots
 
-![Login Screen](static/img/ss1.png)
-![Time Tracking Dashboard](static/img/ss2.png)
-![Settings Page](static/img/ss3.png)
+![Mobile clock workspace](static/img/ss1.png)
+![Tablet timesheet reports](static/img/ss2.png)
+![Desktop profile settings](static/img/ss3.png)
 
 ## Tech Stack
 
-- Frontend: Nuxt.js with Vuetify
+- Frontend: Nuxt 3 with Vue Composition API and TypeScript
 - Backend: Strapi Headless CMS
 - Authentication: Google and existing local accounts through native Strapi authentication
 - Styling: Vuetify Material Design Framework
@@ -177,7 +177,13 @@ Run the fast test suites during development:
 npm test
 ```
 
-This command runs the existing Node.js regression tests and the Vitest unit tests. Run the Playwright browser test separately after installing Chromium:
+This command runs the TypeScript and Composition API guard, checks the project with `vue-tsc`, then runs all unit, routing, and security tests through Vitest. To run only the compiler, use:
+
+```sh
+npm run typecheck
+```
+
+Run the Playwright browser tests after installing Chromium:
 
 ```sh
 npx playwright install chromium
@@ -190,7 +196,9 @@ Synology does not provide Playwright's Linux system libraries. Run the browser t
 npm run test:e2e:docker
 ```
 
-Run every test suite with `npm run test:all` on a supported host. Use `npm run test:unit:watch` for Vitest watch mode or `npm run test:e2e:ui` for Playwright UI mode. Playwright starts a local Nuxt server with a root base path and does not use the configured deployment output directory.
+Run every test suite with `npm run test:all` on a supported host. Use `npm run test:unit:watch` for Vitest watch mode or `npm run test:e2e:ui` for Playwright UI mode. The end-to-end scripts generate the app with a root base path, then serve the generated files through the local SPA test server. They do not use the configured deployment output directory.
+
+Regenerate the README screenshots with `npm run screenshots`. On Synology, run `npm run screenshots:docker` instead. The screenshot test uses fixed account and timesheet data, and writes the mobile, tablet, and desktop views to `static/img/ss1.png`, `static/img/ss2.png`, and `static/img/ss3.png`.
 
 Run `npm run generate` to verify the static build. Hosting and publishing are installation-specific operations rather than part of the public npm scripts.
 

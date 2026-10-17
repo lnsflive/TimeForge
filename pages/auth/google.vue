@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import { completeGoogleLogin, startGoogleLogin } from '~/utils/shared-accounts.js'
+import { completeGoogleLogin, startGoogleLogin } from '~/utils/shared-accounts'
 
 definePageMeta({ layout: 'auth' })
 const error = ref('')

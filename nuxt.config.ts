@@ -48,11 +48,7 @@ export default defineNuxtConfig({
   modules: [
     (_options, nuxt) => {
       nuxt.hooks.hook('vite:extendConfig', (config) => {
-        // Initialize plugins array if it doesn't exist
-        if (!config.plugins) {
-          config.plugins = []
-        }
-        config.plugins.push(
+        config.plugins?.push(
           vuetify({ autoImport: true, styles: { configFile: 'assets/variables.scss' } })
         )
       })

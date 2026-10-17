@@ -1,75 +1,37 @@
 <template>
-  <div class="d-flex flex-column">
-    <!-- Summary Cards -->
-    <v-card class="mb-2 primary rounded-lg">
-      <v-card-title class="text-h6 py-2">Summary</v-card-title>
-      <v-card-text class="pa-2">
-        <v-row dense>
-          <v-col cols="12" sm="6" md="4">
-            <v-card height="80" class="rounded-lg" variant="outlined">
-              <v-card-text class="d-flex flex-column align-center justify-center fill-height py-2">
-                <div class="text-h5">{{ formatDuration(report.summary.totalHours) }}</div>
-                <div class="text-subtitle-2 text-medium-emphasis">Total Hours</div>
-              </v-card-text>
-            </v-card>
-          </v-col>
-          <v-col cols="12" sm="6" md="4">
-            <v-card height="80" class="rounded-lg" variant="outlined">
-              <v-card-text class="d-flex flex-column align-center justify-center fill-height py-2">
-                <div class="text-h5">${{ report.summary.totalPay.toFixed(2) }}</div>
-                <div class="text-subtitle-2 text-medium-emphasis">Total Pay</div>
-              </v-card-text>
-            </v-card>
-          </v-col>
-          <v-col cols="12" sm="6" md="4">
-            <v-card height="80" class="rounded-lg" variant="outlined">
-              <v-card-text class="d-flex flex-column align-center justify-center fill-height py-2">
-                <div class="text-h5">{{ report.summary.totalMiles }}</div>
-                <div class="text-subtitle-2 text-medium-emphasis">Total Miles</div>
-                <div class="text-caption text-medium-emphasis">
-                  ${{ report.summary.mileageReimbursement.toFixed(2) }} reimbursement
-                </div>
-              </v-card-text>
-            </v-card>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+  <div class="report-content">
+    <section class="summary-grid" aria-label="Timesheet summary">
+      <article><v-icon icon="mdi-clock-outline" /><div><strong>{{ formatDuration(report.summary.totalHours) }}</strong><span>Total hours</span></div></article>
+      <article><v-icon icon="mdi-cash-multiple" /><div><strong>${{ report.summary.totalPay.toFixed(2) }}</strong><span>Estimated pay</span></div></article>
+      <article><v-icon icon="mdi-map-marker-distance" /><div><strong>{{ report.summary.totalMiles }}</strong><span>Miles · ${{ report.summary.mileageReimbursement.toFixed(2) }} reimb.</span></div></article>
+    </section>
 
-    <!-- Tabs and Tables -->
-    <v-card class="flex-grow-1 d-flex flex-column">
-      <v-tabs v-model="activeTab" grow color="primary" slider-color="primary" height="36">
+    <section class="entries-panel">
+      <v-tabs v-model="activeTab" grow color="primary" slider-color="primary">
         <v-tab>Daily</v-tab>
         <v-tab>Weekly</v-tab>
         <v-tab>Monthly</v-tab>
       </v-tabs>
 
-      <v-window v-model="activeTab" class="flex-grow-1">
+      <v-window v-model="activeTab">
         <v-window-item
-          v-for="(items, index) in [dailyItems, weeklyItems, monthlyItems]"
-          :key="index"
-          class="h-100"
+          v-for="tab in tabs"
+          :key="tab.kind"
         >
+          <div v-if="tab.items.length === 0" class="empty-state">
+            <v-icon icon="mdi-calendar-blank-outline" size="40" />
+            <strong>No time entries</strong>
+            <span>Clock in for a shift or choose a different date range.</span>
+          </div>
           <v-data-table
-            v-model:page="tablePagination[index].page"
-            :headers="[headers, weeklyHeaders, monthlyHeaders][index]"
-            :items="items"
-            :items-per-page="tablePagination[index].itemsPerPage"
-            class="h-100 w-100 timesheet-table"
-            :sort-by="[
-              { key: index === 0 ? 'date' : index === 1 ? 'startDate' : 'month', order: 'desc' }
-            ]"
+            v-else
+            :headers="tab.headers"
+            :items="tab.items"
+            :items-per-page="7"
+            class="timesheet-table desktop-table"
+            :sort-by="[{ key: 'sortKey', order: 'desc' }]"
             :items-per-page-options="[7, 10, 25, 50]"
           >
-            <template #[`item.date`]="{ item }">
-              {{ formatDate(item.date) }}
-            </template>
-            <template #[`item.dateRange`]="{ item }">
-              {{ formatDateRange(item.startDate, item.endDate) }}
-            </template>
-            <template #[`item.month`]="{ item }">
-              {{ formatMonth(item.month) }}
-            </template>
             <template #[`item.hours`]="{ item }">
               {{ formatDuration(item.hours) }}
             </template>
@@ -82,18 +44,28 @@
                 size="small"
                 color="error"
                 variant="text"
-                @click="
-                  confirmDelete(
-                    index === 0 ? item.date : index === 1 ? item.startDate : item.month,
-                    index === 1 ? item.endDate : null
-                  )
-                "
+                aria-label="Delete entry"
+                @click="confirmDelete(item.deleteTarget)"
               />
             </template>
           </v-data-table>
+          <div v-if="tab.items.length" class="mobile-entry-list">
+            <article v-for="item in tab.items" :key="item.sortKey" class="mobile-entry">
+              <div class="mobile-entry__heading">
+                <strong>{{ item.period }}</strong>
+                <v-btn icon="mdi-delete-outline" size="small" color="error" variant="text" aria-label="Delete entry" @click="confirmDelete(item.deleteTarget)" />
+              </div>
+              <dl>
+                <div><dt>Hours</dt><dd>{{ formatDuration(item.hours) }}</dd></div>
+                <div><dt>Miles</dt><dd>{{ item.miles }}</dd></div>
+                <div><dt>Pay</dt><dd>${{ (item.hours * payRate).toFixed(2) }}</dd></div>
+                <div v-if="item.daysWorked !== undefined"><dt>Days</dt><dd>{{ item.daysWorked }}</dd></div>
+              </dl>
+            </article>
+          </div>
         </v-window-item>
       </v-window>
-    </v-card>
+    </section>
 
     <!-- Delete Confirmation Dialog -->
     <v-dialog v-model="deleteDialog" max-width="400">
@@ -112,289 +84,185 @@
   </div>
 </template>
 
-<script>
-import { generateTimesheetReport, formatDuration, formatDateRange } from '@/utils/timesheet'
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import {
+  formatDateRange,
+  formatDuration,
+  generateTimesheetReport,
+  type TimesheetEntry,
+} from '~/utils/timesheet'
 
-export default {
-  props: {
-    entries: {
-      type: Array,
-      required: true,
-      default: () => []
-    },
-    payRate: {
-      type: Number,
-      default: 0
-    }
+type DeleteTarget =
+  | { kind: 'daily'; date: string }
+  | { kind: 'weekly'; startDate: string; endDate: string }
+  | { kind: 'monthly'; month: string }
+
+interface TableHeader {
+  title: string
+  key: string
+  sortable: boolean
+  align?: 'end'
+}
+
+interface ReportRow {
+  sortKey: string
+  period: string
+  hours: number
+  miles: number
+  pay: number
+  daysWorked?: number
+  deleteTarget: DeleteTarget
+}
+
+interface ReportTab {
+  kind: DeleteTarget['kind']
+  headers: TableHeader[]
+  items: ReportRow[]
+}
+
+const props = withDefaults(defineProps<{
+  entries: TimesheetEntry[]
+  payRate?: number
+}>(), { payRate: 0 })
+const emit = defineEmits<{ 'entries-deleted': [] }>()
+const nuxtApp = useNuxtApp()
+const activeTab = ref(0)
+const deleteDialog = ref(false)
+const deleteTarget = ref<DeleteTarget | null>(null)
+
+const report = computed(() => generateTimesheetReport(props.entries, { payRate: props.payRate }))
+const commonHeaders: TableHeader[] = [
+  { title: 'Hours', key: 'hours', sortable: true },
+  { title: 'Miles', key: 'miles', sortable: true },
+  { title: 'Pay', key: 'pay', sortable: true },
+]
+const actionHeader: TableHeader = { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
+
+function formatDate(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+  })
+}
+
+function formatMonth(month: string): string {
+  return new Date(`${month}-01T00:00:00`).toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long',
+  })
+}
+
+function weekEnd(startDate: string): string {
+  const date = new Date(`${startDate}T00:00:00`)
+  date.setDate(date.getDate() + 6)
+  return date.toISOString().slice(0, 10)
+}
+
+const tabs = computed<ReportTab[]>(() => [
+  {
+    kind: 'daily',
+    headers: [{ title: 'Date', key: 'period', sortable: true }, ...commonHeaders, actionHeader],
+    items: Object.entries(report.value.daily).map(([date, data]) => ({
+      sortKey: date,
+      period: formatDate(date),
+      hours: data.totalHours,
+      miles: data.totalMiles,
+      pay: data.totalHours * props.payRate,
+      deleteTarget: { kind: 'daily', date },
+    })),
   },
-  data() {
-    return {
-      activeTab: 0,
-      deleteDialog: false,
-      deleteTarget: null,
-      deleteType: null,
-      tablePagination: [
-        { page: 1, itemsPerPage: 7 },
-        { page: 1, itemsPerPage: 7 },
-        { page: 1, itemsPerPage: 7 }
-      ],
-      headers: [
-        { title: 'Date', key: 'date', sortable: true },
-        { title: 'Hours', key: 'hours', sortable: true },
-        { title: 'Miles', key: 'miles', sortable: true },
-        { title: 'Pay', key: 'pay', sortable: true },
-        { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
-      ],
-      weeklyHeaders: [
-        { title: 'Week', key: 'dateRange', sortable: true },
-        { title: 'Hours', key: 'hours', sortable: true },
-        { title: 'Miles', key: 'miles', sortable: true },
-        { title: 'Pay', key: 'pay', sortable: true },
-        { title: 'Days Worked', key: 'daysWorked', sortable: true },
-        { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
-      ],
-      monthlyHeaders: [
-        { title: 'Month', key: 'month', sortable: true },
-        { title: 'Hours', key: 'hours', sortable: true },
-        { title: 'Miles', key: 'miles', sortable: true },
-        { title: 'Pay', key: 'pay', sortable: true },
-        { title: 'Days Worked', key: 'daysWorked', sortable: true },
-        { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
-      ]
-    }
-  },
-  computed: {
-    report() {
-      return generateTimesheetReport(this.entries, { payRate: this.payRate })
-    },
-    dailyItems() {
-      if (!this.report?.daily) return []
-      return Object.entries(this.report.daily).map(([date, data]) => ({
-        date,
-        hours: data.totalHours || 0,
-        miles: data.totalMiles || 0,
-        pay: (data.totalHours || 0) * this.payRate
-      }))
-    },
-    weeklyItems() {
-      if (!this.report?.weekly) return []
-      return Object.entries(this.report.weekly).map(([startDate, data]) => ({
-        startDate,
-        endDate: this.getWeekEndDate(startDate),
-        dateRange: `${startDate} - ${this.getWeekEndDate(startDate)}`,
-        hours: data.totalHours || 0,
-        miles: data.totalMiles || 0,
-        pay: (data.totalHours || 0) * this.payRate,
-        daysWorked: data.uniqueDays?.length || 0
-      }))
-    },
-    monthlyItems() {
-      if (!this.report?.monthly) return []
-      return Object.entries(this.report.monthly).map(([month, data]) => ({
-        month,
-        hours: data.totalHours || 0,
-        miles: data.totalMiles || 0,
-        pay: (data.totalHours || 0) * this.payRate,
-        daysWorked: data.uniqueDays?.length || 0
-      }))
-    }
-  },
-  methods: {
-    formatDuration,
-    formatDateRange,
-    formatDate(dateStr) {
-      return new Date(dateStr).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      })
-    },
-    formatMonth(monthStr) {
-      const [year, month] = monthStr.split('-')
-      return new Date(year, month - 1).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long'
-      })
-    },
-    getWeekEndDate(startDate) {
-      const date = new Date(startDate)
-      date.setDate(date.getDate() + 6)
-      return date.toISOString().split('T')[0]
-    },
-    confirmDelete(target, endDate = null) {
-      this.deleteDialog = true
-      this.deleteTarget = target
-      this.deleteType = this.activeTab === 0 ? 'daily' : this.activeTab === 1 ? 'weekly' : 'monthly'
-      if (endDate) {
-        this.deleteTarget = { start: target, end: endDate }
+  {
+    kind: 'weekly',
+    headers: [{ title: 'Week', key: 'period', sortable: true }, ...commonHeaders, { title: 'Days Worked', key: 'daysWorked', sortable: true }, actionHeader],
+    items: Object.entries(report.value.weekly).map(([startDate, data]) => {
+      const endDate = weekEnd(startDate)
+      return {
+        sortKey: startDate,
+        period: formatDateRange(startDate, endDate),
+        hours: data.totalHours,
+        miles: data.totalMiles,
+        pay: data.totalHours * props.payRate,
+        daysWorked: data.uniqueDays.length,
+        deleteTarget: { kind: 'weekly', startDate, endDate },
       }
-    },
-    async deleteEntry() {
-      try {
-        const entriesToDelete = this.entries.filter((entry) => {
-          if (this.deleteType === 'daily') {
-            return entry.date === this.deleteTarget
-          } else if (this.deleteType === 'weekly') {
-            const entryDate = new Date(entry.date)
-            const startDate = new Date(this.deleteTarget.start)
-            const endDate = new Date(this.deleteTarget.end)
-            return entryDate >= startDate && entryDate <= endDate
-          } else {
-            // monthly
-            return entry.date.startsWith(this.deleteTarget)
-          }
-        })
+    }),
+  },
+  {
+    kind: 'monthly',
+    headers: [{ title: 'Month', key: 'period', sortable: true }, ...commonHeaders, { title: 'Days Worked', key: 'daysWorked', sortable: true }, actionHeader],
+    items: Object.entries(report.value.monthly).map(([month, data]) => ({
+      sortKey: month,
+      period: formatMonth(month),
+      hours: data.totalHours,
+      miles: data.totalMiles,
+      pay: data.totalHours * props.payRate,
+      daysWorked: data.uniqueDays.length,
+      deleteTarget: { kind: 'monthly', month },
+    })),
+  },
+])
 
-        // Delete each entry
-        for (const entry of entriesToDelete) {
-          await this.$axios.delete(`/timesheets/${entry.id}`)
-        }
+function confirmDelete(target: DeleteTarget): void {
+  deleteTarget.value = target
+  deleteDialog.value = true
+}
 
-        this.$alerter.showMessage({
-          content: 'Timesheet entries deleted successfully',
-          value: 'success'
-        })
-
-        // Emit event to parent to refresh data
-        this.$emit('entries-deleted')
-      } catch (error) {
-        console.error('Error deleting entries:', error)
-        this.$alerter.showMessage({
-          content: 'Failed to delete entries',
-          value: 'error'
-        })
-      } finally {
-        this.deleteDialog = false
-        this.deleteTarget = null
-      }
+function matchesTarget(entry: TimesheetEntry, target: DeleteTarget): boolean {
+  switch (target.kind) {
+    case 'daily': return entry.date === target.date
+    case 'weekly': return entry.date >= target.startDate && entry.date <= target.endDate
+    case 'monthly': return entry.date.startsWith(target.month)
+    default: {
+      const exhaustive: never = target
+      return exhaustive
     }
+  }
+}
+
+async function deleteEntry(): Promise<void> {
+  const target = deleteTarget.value
+  if (!target) return
+
+  try {
+    for (const entry of props.entries.filter((item) => matchesTarget(item, target))) {
+      await nuxtApp.$axios.delete(`/timesheets/${entry.id}`)
+    }
+    nuxtApp.$alerter.showMessage({ content: 'Timesheet entries deleted successfully', value: 'success' })
+    emit('entries-deleted')
+  } catch {
+    nuxtApp.$alerter.showMessage({ content: 'Failed to delete entries', value: 'error' })
+  } finally {
+    deleteDialog.value = false
+    deleteTarget.value = null
   }
 }
 </script>
 
 <style scoped>
-.h-100 {
-  height: 100% !important;
-}
-
-.w-100 {
-  width: 100% !important;
-}
-
-.timesheet-table {
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-}
-
-.timesheet-table :deep(.v-table) {
-  height: 100% !important;
-}
-
-.timesheet-table :deep(.v-table__wrapper) {
-  height: 100% !important;
-  overflow: hidden !important;
-}
-
-.timesheet-table :deep(table) {
-  height: 100% !important;
-  width: 100% !important;
-  table-layout: fixed !important;
-}
-
-.timesheet-table :deep(thead) {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 2 !important;
-  background: rgb(87, 70, 234) !important;
-}
-
-.timesheet-table :deep(tbody) {
-  height: 100% !important;
-  overflow-y: auto !important;
-}
-
-.timesheet-table :deep(th) {
-  background: rgb(87, 70, 234) !important;
-  color: white !important;
-}
-
-.timesheet-table :deep(.v-data-table-header th) {
-  padding: 8px !important;
-  font-size: 0.875rem !important;
-}
-
-.timesheet-table :deep(.v-data-table-footer) {
-  background: rgb(87, 70, 234) !important;
-  color: white !important;
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
-  padding: 4px 16px;
-  min-height: 44px;
-}
-
-/* Fix pagination dropdown styling */
-.timesheet-table :deep(.v-data-table-footer__select) {
-  background-color: rgb(87, 70, 234) !important;
-  border-radius: 4px;
-  margin: 0 8px;
-}
-
-.timesheet-table :deep(.v-data-table-footer__select .v-select__selection),
-.timesheet-table :deep(.v-data-table-footer__select .v-field__input) {
-  color: white !important;
-}
-
-.timesheet-table :deep(.v-data-table-footer__select .v-field) {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border-radius: 4px;
-}
-
-/* Fix dropdown menu styling */
-:deep(.v-overlay__content .v-list) {
-  background-color: rgb(87, 70, 234) !important;
-  color: white !important;
-  border-radius: 4px;
-  padding: 4px;
-}
-
-:deep(.v-overlay__content .v-list-item) {
-  color: white !important;
-  min-height: 32px !important;
-  border-radius: 4px;
-}
-
-:deep(.v-overlay__content .v-list-item--active) {
-  background-color: rgba(255, 255, 255, 0.2) !important;
-}
-
-/* Fix pagination buttons */
-.timesheet-table :deep(.v-data-table-footer .v-pagination__item) {
-  color: white !important;
-  background: transparent !important;
-}
-
-.timesheet-table :deep(.v-data-table-footer .v-pagination__item--active) {
-  background-color: rgba(255, 255, 255, 0.2) !important;
-}
-
-.timesheet-table :deep(.v-data-table-footer .v-pagination__navigation) {
-  background: transparent !important;
-}
-
-.timesheet-table :deep(.v-data-table-footer .v-pagination__navigation .v-icon) {
-  color: white !important;
-}
-
-/* Table row styling */
-.timesheet-table :deep(tbody tr) {
-  background: transparent !important;
-  transition: background-color 0.2s ease;
-}
-
-.timesheet-table :deep(tbody tr:hover) {
-  background: rgba(255, 255, 255, 0.05) !important;
+.report-content { padding: clamp(1rem, 3vw, 2rem); }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.summary-grid article { min-width: 0; display: flex; align-items: center; gap: .9rem; padding: 1.1rem; border: 1px solid var(--tf-border); border-radius: 1rem; background: var(--tf-surface-raised); }
+.summary-grid .v-icon { flex: 0 0 auto; color: var(--tf-primary); }
+.summary-grid article div { min-width: 0; display: grid; gap: .15rem; }
+.summary-grid strong { overflow: hidden; font-size: clamp(1.25rem, 3vw, 1.75rem); font-weight: 400; text-overflow: ellipsis; }
+.summary-grid span { overflow: hidden; color: var(--tf-muted); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+.entries-panel { overflow: hidden; border: 1px solid var(--tf-border); border-radius: 1rem; background: var(--tf-surface-raised); }
+.timesheet-table { background: transparent !important; }
+.timesheet-table :deep(th) { color: var(--tf-muted) !important; font-size: .78rem; font-weight: 500 !important; text-transform: uppercase; letter-spacing: .06em; }
+.timesheet-table :deep(tbody tr:hover) { background: rgba(117, 103, 255, .07) !important; }
+.empty-state { min-height: 320px; display: grid; place-items: center; align-content: center; gap: .7rem; padding: 2rem; color: var(--tf-muted); text-align: center; }
+.empty-state strong { color: var(--tf-text); }
+.mobile-entry-list { display: none; }
+@media (max-width: 780px) {
+  .summary-grid { grid-template-columns: 1fr; gap: .65rem; }
+  .summary-grid article { padding: .85rem 1rem; }
+  .desktop-table { display: none; }
+  .mobile-entry-list { display: grid; gap: .7rem; padding: .8rem; }
+  .mobile-entry { padding: 1rem; border: 1px solid var(--tf-border); border-radius: .8rem; background: rgba(11, 16, 32, .45); }
+  .mobile-entry__heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .8rem; }
+  .mobile-entry__heading strong { font-size: .9rem; font-weight: 500; }
+  .mobile-entry dl { display: grid; grid-template-columns: repeat(2, 1fr); gap: .7rem; margin: 0; }
+  .mobile-entry dl div { display: grid; gap: .15rem; }
+  .mobile-entry dt { color: var(--tf-muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; }
+  .mobile-entry dd { margin: 0; font-size: .95rem; }
 }
 </style>

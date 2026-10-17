@@ -1,4 +1,5 @@
 import { useUserStore } from '~/stores/user'
+import { isUnauthorizedError } from '~/utils/auth-client'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const path = to.path.replace(/\/+$/, '') || '/'
@@ -7,8 +8,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!store.sessionChecked) {
     try {
       store.setUser(await useNuxtApp().$strapi.restoreUser())
-    } catch (error: any) {
-      if (error.response?.status !== 401) {
+    } catch (error: unknown) {
+      if (!isUnauthorizedError(error)) {
         throw createError({ statusCode: 503, statusMessage: 'Unable to check your session. Please retry.' })
       }
       store.setUser(null)
@@ -22,8 +23,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (store.isLoggedIn && !store.timeforgeProfile && path !== '/login') {
     try {
       store.setTimeForgeProfile(await useNuxtApp().$strapi.getTimeForgeProfile())
-    } catch (error: any) {
-      if (error.response?.status === 401) {
+    } catch (error: unknown) {
+      if (isUnauthorizedError(error)) {
         store.setUser(null)
         return navigateTo('/login')
       }

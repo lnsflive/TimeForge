@@ -1,11 +1,8 @@
 import { defineStore } from 'pinia'
 import { useRuntimeConfig } from 'nuxt/app'
+import type { AccountUser } from '~/types/accounts'
 
-interface User {
-  id: number
-  username: string
-  fullName?: string
-  email: string
+export interface User extends AccountUser {
   image?: {
     url: string
     formats?: {
@@ -17,8 +14,10 @@ interface User {
   }
 }
 
+export interface TimeForgeProfileState { payRate: number | null }
+
 interface UserState {
-  timeforgeProfile: { payRate: number | null } | null
+  timeforgeProfile: TimeForgeProfileState | null
   sessionChecked: boolean
   loggedIn: boolean
   user: User | null

@@ -1,6 +1,8 @@
 import { defineNuxtPlugin, useRuntimeConfig } from 'nuxt/app'
-import { retireTimeForgeWorkers } from '~/utils/retired-workers.js'
-export default defineNuxtPlugin(nuxtApp => {
+import { retireTimeForgeWorkers } from '~/utils/retired-workers'
+import { useAlertStore } from '~/stores/alert'
+export default defineNuxtPlugin(() => {
+  const alertStore = useAlertStore()
   const scheduled = new Map<string, ReturnType<typeof setTimeout>>()
   const clear = () => {scheduled.forEach(timer => clearTimeout(timer));scheduled.clear()}
   const timerService = {
@@ -10,7 +12,7 @@ export default defineNuxtPlugin(nuxtApp => {
       const previous=scheduled.get(data.tag);if(previous)clearTimeout(previous)
       scheduled.set(data.tag,setTimeout(()=>{
         scheduled.delete(data.tag)
-        nuxtApp.$alerter?.showMessage?.({content:data.title+': '+data.body,value:'info'})
+        alertStore.showMessage({content:data.title+': '+data.body,value:'info'})
       },Math.max(0,data.delay)))
     },
     scheduleBreakReminders(startTime:string) {

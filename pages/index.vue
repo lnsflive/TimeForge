@@ -1,220 +1,104 @@
 <template>
-  <v-container class="d-flex justify-center fill-height pa-0">
-    <v-row class="text-center align-center fill-height ma-0">
-      <v-col class="d-flex flex-column justify-space-between fill-height py-8">
-        <div class="mb-8">
-          <div class="text-subtitle-1">
-            {{ datestamp }}
+  <v-container class="clock-page">
+    <section class="clock-workspace" aria-labelledby="clock-heading">
+      <div class="clock-card">
+        <div class="clock-copy">
+          <p class="eyebrow">{{ datestamp }}</p>
+          <h1 id="clock-heading">{{ timestamp }}</h1>
+          <div class="status-line" :class="{ active: clockedIn }">
+            <span class="status-dot" />{{ statusMessage }}
           </div>
-          <div class="text-h2">
-            {{ timestamp }}
-          </div>
-          <div class="text-body-1">{{ statusMessage }}</div>
         </div>
 
-        <div class="mb-8">
-          <v-btn
-            v-if="clockedIn"
-            fab
-            large
-            width="188"
-            height="188"
-            color="error"
-            :disabled="!canClockOut"
-            rounded="circle"
-            @click="clockOut"
-          >
-            <div class="d-flex flex-column align-center">
-              <v-icon size="56" class="mb-4">mdi-alarm</v-icon>
-              <span>Clock Out</span>
-            </div>
-          </v-btn>
-          <v-btn
-            v-else
-            fab
-            large
-            width="188"
-            height="188"
-            color="success"
-            :disabled="!canClockIn"
-            rounded="circle"
-            @click="clockIn"
-          >
-            <div class="d-flex flex-column align-center">
-              <v-icon size="56" class="mb-4">mdi-alarm</v-icon>
-              <span>Clock In</span>
-            </div>
-          </v-btn>
-        </div>
-
-        <div>
-          <v-row>
-            <v-col cols="12" class="d-flex justify-center">
-              <v-btn
-                rounded
-                :class="['ma-2', isOnBreak ? 'orange darken-2' : 'orange']"
-                :disabled="!clockedIn || isOnLunch"
-                height="76"
-                min-width="200"
-                max-width="424"
-                style="width: calc(100% - 16px)"
-                @click="toggleBreak"
-              >
-                <v-icon left size="32">mdi-coffee</v-icon>
-                <span class="text-h6">{{ isOnBreak ? 'End Break' : 'Take Break' }}</span>
-              </v-btn>
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="12" class="d-flex justify-center">
-              <v-btn
-                rounded
-                :class="['ma-2', isOnLunch ? 'success darken-2' : 'success']"
-                :disabled="!clockedIn || isOnBreak"
-                height="76"
-                min-width="200"
-                max-width="424"
-                style="width: calc(100% - 16px)"
-                @click="toggleLunch"
-              >
-                <v-icon left size="32">mdi-food</v-icon>
-                <span class="text-h6">{{ isOnLunch ? 'End Lunch' : 'Take Lunch' }}</span>
-              </v-btn>
-            </v-col>
-          </v-row>
-        </div>
-
-        <div>
-          <v-row class="pa-0 ma-0">
-            <v-col cols="12" class="d-flex flex-wrap justify-center">
-              <v-btn
-                v-for="(btn, index) in buttons"
-                :key="index"
-                min-width="200"
-                height="66"
-                :class="['ma-2', getButtonActive(btn) ? 'green' : 'white']"
-                :disabled="btn.disabled || isOnBreak"
-                :to="btn.route || undefined"
-                @click="btn.handler ? handleButtonClick(btn) : undefined"
-              >
-                <div class="d-flex align-center justify-start" style="width: 100%; padding: 0 16px">
-                  <v-icon :class="['rounded-lg', btn.iconColor || 'green']" class="pa-2" size="32">
-                    {{ btn.icon }}
-                  </v-icon>
-                  <span class="black--text ml-4 text-body-1">{{ btn.text }}</span>
-                </div>
-              </v-btn>
-            </v-col>
-          </v-row>
-        </div>
-      </v-col>
-      <!-- <v-col>
-        <v-progress-circular
-          rotate="270"
-          size="160"
-          width="10"
-          :value="counter"
-          color="teal"
+        <v-btn
+          class="clock-button"
+          :class="{ 'clock-button--out': clockedIn }"
+          :disabled="clockedIn ? !canClockOut : !canClockIn"
+          rounded="circle"
+          :aria-label="clockedIn ? 'Clock out' : 'Clock in'"
+          @click="clockedIn ? clockOut() : clockIn()"
         >
-          <h1>{{ hours }} Hrs</h1>
-        </v-progress-circular>
-      </v-col> -->
-    </v-row>
-    <v-navigation-drawer
-      v-model="milesActive"
-      absolute
-      bottom
-      color="primary"
-      class="rounded-t-lg mb-n10 pa-4"
-      temporary
-    >
-      <v-text-field v-model="startMiles" label="Mileage Start" type="text" class="dataInput mt-8" />
-      <v-text-field v-model="endMiles" label="Mileage End" type="text" class="dataInput mt-8" />
-    </v-navigation-drawer>
+          <v-icon :icon="clockedIn ? 'mdi-stop' : 'mdi-play'" size="36" />
+          <strong>{{ clockedIn ? 'Clock out' : 'Clock in' }}</strong>
+        </v-btn>
 
-    <!-- Break Timer Modal -->
-    <v-dialog v-model="isOnBreak" persistent max-width="400px" overlay-opacity="0.9">
-      <v-card :class="breakCardColor">
-        <v-card-title class="text-center d-block">
-          <v-icon size="48" class="mb-2">mdi-coffee</v-icon>
-          <div class="text-h4">Break Time</div>
-        </v-card-title>
+        <p class="clock-hint">
+          {{ clockedIn ? 'Finish breaks and lunch before clocking out.' : 'Start your shift when you are ready.' }}
+        </p>
+      </div>
 
-        <v-card-text class="text-center">
-          <div class="text-h2 mb-4">{{ breakTimeFormatted }}</div>
-          <div class="text-subtitle-1">{{ breakStatus }}</div>
+      <aside class="action-card" aria-label="Shift actions">
+        <div>
+          <p class="eyebrow">Shift controls</p>
+          <h2>What do you need?</h2>
+        </div>
 
-          <v-progress-circular
-            :value="breakProgress"
-            :color="breakColor"
-            size="200"
-            width="15"
-            class="ma-4"
+        <div class="shift-actions">
+          <v-btn
+            class="shift-action"
+            variant="tonal"
+            :disabled="!clockedIn || isOnLunch"
+            @click="toggleBreak"
           >
-            <span class="text-h5">{{ Math.round(breakProgress) }}%</span>
-          </v-progress-circular>
-        </v-card-text>
+            <v-icon icon="mdi-coffee-outline" />
+            <span><strong>{{ isOnBreak ? 'End break' : 'Take a break' }}</strong><small>15 minute timer</small></span>
+          </v-btn>
+          <v-btn
+            class="shift-action"
+            variant="tonal"
+            :disabled="!clockedIn || isOnBreak"
+            @click="toggleLunch"
+          >
+            <v-icon icon="mdi-food-outline" />
+            <span><strong>{{ isOnLunch ? 'End lunch' : 'Take lunch' }}</strong><small>Track lunch time</small></span>
+          </v-btn>
+        </div>
 
-        <v-card-actions class="justify-center pb-6">
-          <v-btn color="error" large @click="toggleBreak"> End Break </v-btn>
-        </v-card-actions>
+        <div class="quick-links">
+          <v-btn to="/dashboard" variant="outlined" prepend-icon="mdi-chart-box-outline">View reports</v-btn>
+          <v-btn variant="outlined" prepend-icon="mdi-car-outline" :disabled="isOnBreak" @click="toggleMileage">Mileage</v-btn>
+        </div>
+      </aside>
+    </section>
+
+    <v-dialog v-model="milesActive" max-width="680px">
+      <v-card class="mileage-dialog">
+        <div class="mileage-form">
+          <div><p class="eyebrow">Optional</p><h2>Trip mileage</h2></div>
+          <v-text-field v-model="startMiles" label="Starting odometer" type="number" variant="outlined" />
+          <v-text-field v-model="endMiles" label="Ending odometer" type="number" variant="outlined" />
+          <v-btn color="primary" @click="milesActive = false">Done</v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="isOnBreak" persistent max-width="420px" overlay-opacity="0.9">
+      <v-card class="break-dialog" :class="breakCardColor">
+        <v-card-text>
+          <v-icon icon="mdi-coffee-outline" size="42" />
+          <p class="eyebrow">Break in progress</p>
+          <div class="break-time">{{ breakTimeFormatted }}</div>
+          <p>{{ breakStatus }}</p>
+          <v-progress-linear :model-value="breakProgress" :color="breakColor" height="8" rounded />
+          <v-btn color="error" block size="large" @click="toggleBreak">End break</v-btn>
+        </v-card-text>
       </v-card>
     </v-dialog>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { createClockStorage } from '~/utils/clock-storage.js'
+import { createClockStorage } from '~/utils/clock-storage'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { useNuxtApp, navigateTo } from 'nuxt/app'
 
-interface AlertMessage {
-  content: string
-  value: 'success' | 'error' | 'info' | 'warning'
-}
-
-interface TimerState {
-  clockedIn: boolean
-  startTime: string | null
-  endTime: string | null
-  startLunch: string | null
-  endLunch: string | null
-  isOnBreak: boolean
-  isOnLunch: boolean
-}
-
-interface BreakState {
-  startTime: string | null
-}
-
-interface Button {
-  text: string
-  icon: string
-  route?: string
-  handler?: string
-  iconColor?: string
-  activeKey?: string
-  disabled: boolean
-}
-
-interface NuxtAppPlugins {
-  $alerter: {
-    showMessage(message: AlertMessage): void
-  }
-  $timerService: {
-    sendTimerState(state: TimerState): void
-    sendBreakState(state: BreakState | null): void
-    scheduleBreakReminders(startTime: string): void
-  }
-  $axios: { post(url: string, data: unknown): Promise<unknown> }
-}
-
-const nuxtApp = useNuxtApp() as unknown as NuxtAppPlugins
+const nuxtApp = useNuxtApp()
 const userStore = useUserStore()
-const clockStorage = createClockStorage(localStorage, userStore.loggedInUser?.id)
+const userId = userStore.loggedInUser?.id
+if (!userId) throw createError({ statusCode: 401, statusMessage: 'Sign in required' })
+const clockStorage = createClockStorage(localStorage, userId)
 
-const lunchActive = ref(false)
 const milesActive = ref(false)
 const errors = ref<string | null>(null)
 const datestamp = ref('')
@@ -228,36 +112,12 @@ const endLunch = ref<string | null>(null)
 const startMiles = ref<string | null>(null)
 const endMiles = ref<string | null>(null)
 const breakStartTime = ref<Date | null>(null)
-const breakDuration = ref(0)
-const breakHistory = ref<any[]>([])
-const counter = ref(0)
-const hours = ref(0)
 const today = ref('')
 const isOnBreak = ref(false)
 const isOnLunch = ref(false)
 const breakElapsed = ref(0)
 const breakInterval = ref<ReturnType<typeof setInterval> | null>(null)
 
-const buttons: Button[] = [
-  {
-    text: 'Timesheet',
-    icon: 'mdi-newspaper',
-    route: '/dashboard',
-    iconColor: 'green',
-    disabled: false
-  },
-  {
-    text: 'Mileage',
-    icon: 'mdi-car',
-    handler: 'toggleMileage',
-    iconColor: 'green',
-    activeKey: 'milesActive',
-    disabled: false
-  }
-]
-
-// Computed properties
-const canTakeLunch = computed(() => clockedIn.value && !endTime.value && !endLunch.value)
 const statusMessage = computed(() => {
   if (!clockedIn.value) return 'Not clocked in'
   if (isOnBreak.value) return `On break (${breakTimeFormatted.value})`
@@ -268,12 +128,6 @@ const canClockIn = computed(() => !clockedIn.value && !startTime.value)
 const canClockOut = computed(
   () => clockedIn.value && !endTime.value && !isOnBreak.value && !isOnLunch.value
 )
-const currentBreakDuration = computed(() => {
-  if (!breakStartTime.value) return 0
-  const now = new Date().getTime()
-  const start = new Date(breakStartTime.value).getTime()
-  return Math.round((now - start) / 60000)
-})
 const breakTimeFormatted = computed(() => {
   const minutes = Math.floor(breakElapsed.value / 60)
   const seconds = breakElapsed.value % 60
@@ -317,30 +171,14 @@ watch(startMiles, (newTime) => {
 watch(endMiles, (newTime) => {
   clockStorage.setItem('endMiles', newTime)
 })
-watch(breakDuration, (newDuration) => {
-  clockStorage.setItem('breakDuration', newDuration)
-})
-watch(breakHistory, (newHistory) => {
-  clockStorage.setItem('breakHistory', JSON.stringify(newHistory))
-})
-watch(isOnBreak, (newVal) => {
-  if (newVal) {
-    nuxtApp.$alerter.showMessage({
-      content: 'Break started - Take a moment to relax!',
-      value: 'info'
-    })
-  }
-})
-
-// Lifecycle hooks
 onMounted(() => {
-  syncTimerState()
   const tmpDate = new Date()
   getDateTime()
   today.value = tmpDate.toISOString().slice(0, 10)
 
-  if (clockStorage.getItem('clockStatus')) {
-    clockedIn.value = JSON.parse(clockStorage.getItem('clockStatus'))
+  const storedClockStatus = clockStorage.getItem('clockStatus')
+  if (storedClockStatus) {
+    clockedIn.value = JSON.parse(storedClockStatus)
   }
   if (clockStorage.getItem('startTime')) {
     startTime.value = clockStorage.getItem('startTime')
@@ -362,13 +200,6 @@ onMounted(() => {
   if (clockStorage.getItem('endMiles')) {
     endMiles.value = clockStorage.getItem('endMiles')
   }
-  if (clockStorage.getItem('breakDuration')) {
-    breakDuration.value = Number(clockStorage.getItem('breakDuration'))
-  }
-  if (clockStorage.getItem('breakHistory')) {
-    breakHistory.value = JSON.parse(clockStorage.getItem('breakHistory'))
-  }
-
   // Restore break state
   const savedBreak = clockStorage.getItem('breakState')
   if (savedBreak) {
@@ -387,24 +218,12 @@ onMounted(() => {
       clockStorage.removeItem('breakState')
     }
   }
+  syncTimerState()
 })
 
 onBeforeUnmount(() => {
   clearBreakTimer()
 })
-
-// Methods
-function formatDuration(minutes: number): string {
-  const hrs = Math.floor(minutes / 60)
-  const mins = minutes % 60
-  return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`
-}
-
-function updateBreakDuration() {
-  if (breakStartTime.value) {
-    counter.value++
-  }
-}
 
 function toggleBreak(): void {
   if (isOnBreak.value) {
@@ -484,49 +303,6 @@ function getTimeStamp(): string {
   return new Date().toISOString()
 }
 
-function lunch() {
-  if (!canTakeLunch.value) {
-    nuxtApp.$alerter.showMessage({
-      content: 'You must be clocked in to take lunch',
-      value: 'error'
-    })
-    return
-  }
-
-  if (!startLunch.value) {
-    startLunch.value = getTimeStamp()
-    nuxtApp.$alerter.showMessage({
-      content: 'Lunch break started',
-      value: 'success'
-    })
-  } else if (!endLunch.value) {
-    endLunch.value = getTimeStamp()
-    nuxtApp.$alerter.showMessage({
-      content: 'Lunch break ended',
-      value: 'success'
-    })
-  } else {
-    nuxtApp.$alerter.showMessage({
-      content: 'You have already taken your lunch break',
-      value: 'error'
-    })
-  }
-}
-
-function mileage() {
-  if (startMiles.value == null && endMiles.value == null) {
-    startMiles.value = prompt('Enter your Start Miles')
-    milesActive.value = true
-  } else if (endMiles.value == null) {
-    endMiles.value = prompt('Enter your End Miles')
-  } else {
-    nuxtApp.$alerter.showMessage({
-      content: 'Already entered mileage',
-      value: 'error'
-    })
-  }
-}
-
 function clockIn() {
   if (!canClockIn.value) {
     nuxtApp.$alerter.showMessage({
@@ -535,12 +311,9 @@ function clockIn() {
     })
     return
   }
-  syncTimerState()
-
   clockedIn.value = true
   startTime.value = getTimeStamp()
-  breakDuration.value = 0
-  breakHistory.value = []
+  syncTimerState()
   nuxtApp.$alerter.showMessage({
     content: 'Successfully clocked in',
     value: 'success'
@@ -569,6 +342,7 @@ function clockOut() {
 
   clockedIn.value = false
   endTime.value = getTimeStamp()
+  syncTimerState()
   postTime()
 }
 
@@ -578,8 +352,8 @@ async function postTime(): Promise<void> {
     await nuxtApp.$axios.post('/timesheets', {
       startTime: startTime.value,
       endTime: endTime.value,
-      startLunch: null,
-      endLunch: null,
+      startLunch: startLunch.value,
+      endLunch: endLunch.value,
       startMiles: startMiles.value,
       endMiles: endMiles.value,
       date: today.value,
@@ -600,27 +374,6 @@ function clearLocalStorage() {
   clockStorage.clear()
 }
 
-function getButtonActive(btn: Button): boolean {
-  if (btn.text === 'Break') {
-    return !!breakStartTime.value
-  }
-  return false
-}
-
-function handleButtonClick(btn: Button): void {
-  if (btn.disabled) {
-    nuxtApp.$alerter.showMessage({
-      content: 'This action is not available right now',
-      value: 'warning'
-    })
-    return
-  }
-
-  if (btn.handler === 'toggleMileage') {
-    toggleMileage()
-  }
-}
-
 function toggleMileage(): void {
   milesActive.value = !milesActive.value
 }
@@ -637,6 +390,7 @@ function toggleLunch(): void {
   if (!startLunch.value) {
     startLunch.value = getTimeStamp()
     isOnLunch.value = true
+    syncTimerState()
     nuxtApp.$alerter.showMessage({
       content: 'Lunch break started',
       value: 'success'
@@ -644,6 +398,7 @@ function toggleLunch(): void {
   } else if (!endLunch.value) {
     endLunch.value = getTimeStamp()
     isOnLunch.value = false
+    syncTimerState()
     nuxtApp.$alerter.showMessage({
       content: 'Lunch break ended',
       value: 'success'
@@ -675,171 +430,57 @@ function syncTimerState() {
 </script>
 
 <style scoped>
-.v-btn.orange {
-  background-color: #ff9800 !important;
-  color: white !important;
+.clock-page { max-width: 1180px; min-height: 100%; padding: clamp(1rem, 4vw, 3rem); }
+.clock-workspace { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(19rem, .75fr); gap: clamp(1rem, 3vw, 2rem); }
+.clock-card, .action-card { min-width: 0; border: 1px solid var(--tf-border); border-radius: 1.4rem; background: rgba(21, 27, 49, .92); box-shadow: 0 24px 60px rgba(0, 0, 0, .18); }
+.clock-card { display: grid; justify-items: center; align-content: center; min-height: min(650px, calc(100dvh - 180px)); padding: clamp(2rem, 6vw, 4.5rem); text-align: center; }
+.clock-copy h1 { margin: .25rem 0 .8rem; font-size: clamp(3rem, 8vw, 5.6rem); font-weight: 300; line-height: 1; letter-spacing: -.06em; }
+.eyebrow { margin: 0; color: var(--tf-muted); font-size: .72rem; font-weight: 500; letter-spacing: .13em; text-transform: uppercase; }
+.status-line { display: inline-flex; align-items: center; gap: .55rem; color: var(--tf-muted); font-size: .92rem; }
+.status-dot { width: .55rem; height: .55rem; border-radius: 50%; background: var(--tf-muted); }
+.status-line.active { color: var(--tf-success); }
+.status-line.active .status-dot { background: var(--tf-success); box-shadow: 0 0 0 .3rem rgba(84, 214, 148, .12); }
+.clock-button { width: clamp(10rem, 21vw, 12.5rem) !important; height: clamp(10rem, 21vw, 12.5rem) !important; margin: clamp(2rem, 5vw, 3.5rem) 0 1.5rem; color: #0b1020 !important; background: var(--tf-success) !important; box-shadow: 0 20px 50px rgba(84, 214, 148, .22); }
+.clock-button--out { color: #fff !important; background: var(--tf-danger) !important; box-shadow: 0 20px 50px rgba(255, 120, 144, .2); }
+.clock-button :deep(.v-btn__content) { display: grid; justify-items: center; gap: .65rem; text-transform: none; }
+.clock-button strong { font-size: 1.05rem; }
+.clock-hint { max-width: 27rem; margin: 0; color: var(--tf-muted); font-size: .86rem; line-height: 1.6; }
+.action-card { align-self: center; display: grid; gap: 1.75rem; padding: clamp(1.4rem, 3vw, 2rem); }
+.action-card h2 { margin: .4rem 0 0; font-size: clamp(1.45rem, 3vw, 2rem); font-weight: 400; }
+.shift-actions { display: grid; gap: .8rem; }
+.shift-action { min-height: 76px !important; justify-content: flex-start; padding: 0 1rem !important; border: 1px solid var(--tf-border); border-radius: .85rem !important; text-transform: none; }
+.shift-action :deep(.v-btn__content) { width: 100%; justify-content: flex-start; gap: .8rem; }
+.shift-action .v-icon { color: var(--tf-warning); }
+.shift-action span { display: grid; gap: .12rem; text-align: left; }
+.shift-action small { color: var(--tf-muted); font-weight: 400; }
+.quick-links { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+.quick-links .v-btn { min-width: 0; text-transform: none; }
+.mileage-dialog { border: 1px solid var(--tf-border); border-radius: 1.25rem !important; background: var(--tf-surface-raised) !important; }
+.mileage-form { width: min(100%, 680px); display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: 1rem; margin: auto; padding: 1.5rem; }
+.mileage-form > div:first-child { grid-column: 1 / -1; }
+.mileage-form h2 { margin: .35rem 0 0; }
+.break-dialog { border: 1px solid var(--tf-border); border-radius: 1.25rem !important; background: var(--tf-surface-raised) !important; text-align: center; }
+.break-dialog .v-card-text { display: grid; justify-items: center; gap: 1.25rem; padding: 2rem; }
+.break-time { font-size: clamp(3rem, 12vw, 4.5rem); font-weight: 300; letter-spacing: -.05em; }
+.break-dialog .v-progress-linear { width: 100%; }
+.warning-bg { border-color: var(--tf-warning); }
+.error-bg { border-color: var(--tf-danger); }
+@media (max-width: 900px) {
+  .clock-workspace { grid-template-columns: 1fr; }
+  .clock-card { min-height: auto; padding-block: 3rem; }
+  .action-card { width: 100%; }
+  .shift-actions { grid-template-columns: 1fr 1fr; }
 }
-
-.v-btn.orange.darken-2 {
-  background-color: #f57c00 !important;
-}
-
-.v-btn.success {
-  background-color: #4caf50 !important;
-  color: white !important;
-}
-
-.v-btn.success.darken-2 {
-  background-color: #388e3c !important;
-}
-
-.v-btn.error {
-  background-color: #f44336 !important;
-  color: white !important;
-}
-
-.v-btn.error.darken-2 {
-  background-color: #d32f2f !important;
-}
-
-.v-btn.white {
-  background-color: #ffffff !important;
-  color: rgba(0, 0, 0, 0.87) !important;
-}
-
-.v-btn.green {
-  background-color: #4caf50 !important;
-  color: white !important;
-}
-
-.warning-bg {
-  background-color: #fff3e0 !important;
-}
-
-.error-bg {
-  background-color: #ffebee !important;
-}
-
-.text-h2 {
-  font-size: 3.75rem !important;
-  font-weight: 300;
-  line-height: 3.75rem;
-  letter-spacing: -0.0083333333em !important;
-}
-
-.text-h4 {
-  font-size: 2.125rem !important;
-  font-weight: 400;
-  line-height: 2.5rem;
-  letter-spacing: 0.0073529412em !important;
-}
-
-.text-h5 {
-  font-size: 1.5rem !important;
-  font-weight: 400;
-  line-height: 2rem;
-  letter-spacing: 0em !important;
-}
-
-.text-h6 {
-  font-size: 1.25rem !important;
-  font-weight: 500;
-  line-height: 2rem;
-  letter-spacing: 0.0125em !important;
-}
-
-.text-subtitle-1 {
-  font-size: 1rem !important;
-  font-weight: 400;
-  line-height: 1.75rem;
-  letter-spacing: 0.009375em !important;
-}
-
-.text-body-1 {
-  font-size: 1rem !important;
-  font-weight: 400;
-  line-height: 1.5rem;
-  letter-spacing: 0.03125em !important;
-}
-
-.fill-height {
-  height: 100% !important;
-}
-
-.d-flex {
-  display: flex !important;
-}
-
-.flex-column {
-  flex-direction: column !important;
-}
-
-.flex-wrap {
-  flex-wrap: wrap !important;
-}
-
-.justify-center {
-  justify-content: center !important;
-}
-
-.justify-space-between {
-  justify-content: space-between !important;
-}
-
-.align-center {
-  align-items: center !important;
-}
-
-.text-center {
-  text-align: center !important;
-}
-
-.ma-2 {
-  margin: 8px !important;
-}
-
-.ma-4 {
-  margin: 16px !important;
-}
-
-.mb-2 {
-  margin-bottom: 8px !important;
-}
-
-.mb-4 {
-  margin-bottom: 16px !important;
-}
-
-.ml-4 {
-  margin-left: 16px !important;
-}
-
-.pa-2 {
-  padding: 8px !important;
-}
-
-.pa-4 {
-  padding: 16px !important;
-}
-
-.py-16 {
-  padding-top: 64px !important;
-  padding-bottom: 64px !important;
-}
-
-.rounded-lg {
-  border-radius: 4px !important;
-}
-
-.mb-n10 {
-  margin-bottom: -40px !important;
-}
-
-.mt-8 {
-  margin-top: 32px !important;
-}
-
-.black--text {
-  color: rgba(0, 0, 0, 0.87) !important;
+@media (max-width: 600px) {
+  .clock-page { padding: .85rem; }
+  .clock-card, .action-card { border-radius: 1rem; }
+  .clock-card { padding: 2rem 1.25rem; }
+  .clock-copy h1 { font-size: clamp(2.75rem, 16vw, 4rem); }
+  .clock-button { width: 9.5rem !important; height: 9.5rem !important; margin-block: 1.75rem 1.15rem; }
+  .action-card { gap: 1.25rem; padding: 1.2rem; }
+  .shift-actions { grid-template-columns: 1fr; }
+  .quick-links { grid-template-columns: 1fr; }
+  .mileage-form { grid-template-columns: 1fr; }
+  .mileage-form > div:first-child { grid-column: auto; }
 }
 </style>
