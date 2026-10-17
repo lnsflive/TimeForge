@@ -169,7 +169,30 @@ The Profile page edits shared display name and a separate owned TimeForge pay-ra
 
 The Google callback adds a temporary noncredential query parameter to load a fresh return document. The authenticated route guard removes it and redirects signed-in users away from login. Login and callback have a standalone layout; authenticated navigation uses the account menu.
 
-Run `npm test` for authentication regressions and `npm run generate` to verify the static build. Hosting and publishing are installation-specific operations rather than part of the public npm scripts.
+## Testing
+
+Run the fast test suites during development:
+
+```sh
+npm test
+```
+
+This command runs the existing Node.js regression tests and the Vitest unit tests. Run the Playwright browser test separately after installing Chromium:
+
+```sh
+npx playwright install chromium
+npm run test:e2e
+```
+
+Synology does not provide Playwright's Linux system libraries. Run the browser test in the pinned Playwright container there:
+
+```sh
+npm run test:e2e:docker
+```
+
+Run every test suite with `npm run test:all` on a supported host. Use `npm run test:unit:watch` for Vitest watch mode or `npm run test:e2e:ui` for Playwright UI mode. Playwright starts a local Nuxt server with a root base path and does not use the configured deployment output directory.
+
+Run `npm run generate` to verify the static build. Hosting and publishing are installation-specific operations rather than part of the public npm scripts.
 
 ### Dependency security patches
 
